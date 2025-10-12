@@ -96,7 +96,7 @@ export class BallPool {
   /**
    * Get count of active balls
    */
-  getActiveCount(): number {
+  getActiveBallCount(): number {
     return this.group.getChildren().filter((child: any) => child.active).length;
   }
 }

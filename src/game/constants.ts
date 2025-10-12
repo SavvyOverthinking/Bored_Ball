@@ -3,6 +3,8 @@
  * Centralized configuration for gameplay balance and physics
  */
 
+import Phaser from 'phaser';
+
 export const CANVAS = {
   WIDTH: 900,
   HEIGHT: 640,

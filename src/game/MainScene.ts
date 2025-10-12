@@ -6,12 +6,14 @@
 import Phaser from 'phaser';
 import { generateCalendarBlocks, getCalendarGridConfig, getBoardDimensions, type BlockData } from './calendarGenerator';
 import { applyMeetingEffect, type MeetingType } from './physicsModifiers';
+import { BallPool } from './BallPool';
+import { clampVelocity, calculatePaddleBounceAngle, PHYSICS } from './constants';
 import calendarData from '../data/mockCalendar.json';
 
 export class MainScene extends Phaser.Scene {
   // Game objects
   private paddle!: Phaser.Physics.Arcade.Sprite;
-  private balls: Phaser.Physics.Arcade.Sprite[] = [];
+  private ballPool!: BallPool;
   private blocks!: Phaser.Physics.Arcade.StaticGroup;
   private blockDataMap: Map<string, BlockData> = new Map();
   private blockHitPoints: Map<string, number> = new Map();
@@ -46,6 +48,9 @@ export class MainScene extends Phaser.Scene {
 
     // Set background (lighter, more Outlook-like)
     this.add.rectangle(width / 2, height / 2, width, height, 0xfafbfc);
+
+    // Initialize ball pool
+    this.ballPool = new BallPool(this);
 
     // Draw calendar grid
     this.drawCalendarGrid();
@@ -88,15 +93,21 @@ export class MainScene extends Phaser.Scene {
       this.winGame();
     }
 
+    // Clean up balls that fell off screen
+    this.ballPool.killIfOffscreen();
+
     // Check if all balls are out of bounds
-    if (this.balls.length === 0 && this.gameStarted && !this.gameOver) {
+    if (this.ballPool.getActiveBallCount() === 0 && this.gameStarted && !this.gameOver) {
       this.loseLife();
     }
 
-    // Update ball position before game starts
-    if (!this.gameStarted && this.balls.length > 0) {
-      this.balls[0].x = this.paddle.x;
-      this.balls[0].y = this.paddle.y - 30;
+    // Update first ball position before game starts
+    if (!this.gameStarted) {
+      const firstBall = this.ballPool.getGroup().getFirstAlive();
+      if (firstBall) {
+        firstBall.x = this.paddle.x;
+        firstBall.y = this.paddle.y - 30;
+      }
     }
   }
 
@@ -110,7 +121,7 @@ export class MainScene extends Phaser.Scene {
     // Draw day labels (Outlook style)
     config.days.forEach((day, index) => {
       const x = config.padding + index * (config.columnWidth + config.columnGap) + config.columnWidth / 2;
-      const text = this.add.text(x, 25, day.substring(0, 3).toUpperCase(), {
+      this.add.text(x, 25, day.substring(0, 3).toUpperCase(), {
         fontFamily: 'Segoe UI, Inter, sans-serif',
         fontSize: '12px',
         color: '#605e5c',
@@ -265,9 +276,10 @@ export class MainScene extends Phaser.Scene {
     this.physics.add.existing(paddleGraphics);
     this.paddle = paddleGraphics as any;
     
-    if (this.paddle.body) {
-      this.paddle.body.setImmovable(true);
-      this.paddle.body.setSize(120, 18);
+    const body = this.paddle.body as Phaser.Physics.Arcade.Body;
+    if (body) {
+      body.immovable = true;
+      body.setSize(120, 18);
     }
     
     this.paddle.setDepth(10);
@@ -279,30 +291,9 @@ export class MainScene extends Phaser.Scene {
    */
   private createBall() {
     const { width, height } = getBoardDimensions();
-
-    // Create ball as a circle graphics object directly (smaller size)
-    const ballGraphics = this.add.circle(width / 2, height - 80, 8, 0x2196F3);
+    const ball = this.ballPool.spawn(width / 2, height - 80, 0, 0);
     
-    // Add physics to the graphics object
-    this.physics.add.existing(ballGraphics);
-    const ball = ballGraphics as any;
-    
-    if (ball.body) {
-      ball.body.setCircle(8);
-      ball.body.setCollideWorldBounds(true);
-      ball.body.setBounce(1, 1);
-      ball.body.onWorldBounds = true;
-    }
-    
-    ball.setDepth(100);
-    
-    console.log('Ball created at:', ball.x, ball.y, 'Visible:', ball.visible); // Debug log
-    
-    this.balls.push(ball);
-    
-    // Setup collisions for this ball
-    this.physics.add.collider(ball, this.paddle, this.ballHitPaddle, undefined, this);
-    this.physics.add.collider(ball, this.blocks, this.ballHitBlock, undefined, this);
+    console.log('Ball created at:', ball.x, ball.y, 'Visible:', ball.visible);
   }
 
   /**
@@ -310,32 +301,12 @@ export class MainScene extends Phaser.Scene {
    */
   public createExtraBall(x: number, y: number, velocityX: number, velocityY: number) {
     // Limit to max 3 balls
-    if (this.balls.length >= 3) {
+    if (this.ballPool.getActiveBallCount() >= 3) {
       console.log('Max balls reached (3), skipping extra ball creation');
       return;
     }
     
-    // Create ball as a circle graphics object directly (smaller size)
-    const ballGraphics = this.add.circle(x, y, 8, 0x2196F3);
-    
-    this.physics.add.existing(ballGraphics);
-    const ball = ballGraphics as any;
-    
-    if (ball.body) {
-      ball.body.setCircle(8);
-      ball.body.setCollideWorldBounds(true);
-      ball.body.setBounce(1, 1);
-      ball.body.setVelocity(velocityX, velocityY);
-      ball.body.onWorldBounds = true;
-    }
-    
-    ball.setDepth(100);
-    
-    this.balls.push(ball);
-
-    // Setup collisions for new ball
-    this.physics.add.collider(ball, this.paddle, this.ballHitPaddle, undefined, this);
-    this.physics.add.collider(ball, this.blocks, this.ballHitBlock, undefined, this);
+    this.ballPool.spawn(x, y, velocityX, velocityY);
   }
 
   /**
@@ -353,28 +324,50 @@ export class MainScene extends Phaser.Scene {
    * Setup collision handlers
    */
   private setupCollisions() {
-    // Add world bounds collision but allow bottom to be open
-    const { height } = getBoardDimensions();
-    this.physics.world.on('worldbounds', (body: Phaser.Physics.Arcade.Body) => {
-      if (body.y > height - 20) {
-        // Ball fell off bottom
-        const ball = body.gameObject as Phaser.Physics.Arcade.Sprite;
-        this.removeBall(ball);
-      }
-    });
-    
+    // Set up world bounds (open at bottom)
     this.physics.world.setBoundsCollision(true, true, true, false);
+    
+    // Set up collisions between ball pool and paddle/blocks
+    this.physics.add.collider(
+      this.ballPool.getGroup(),
+      this.paddle,
+      this.ballHitPaddle,
+      undefined,
+      this
+    );
+    
+    this.physics.add.collider(
+      this.ballPool.getGroup(),
+      this.blocks,
+      this.ballHitBlock,
+      undefined,
+      this
+    );
   }
 
   /**
    * Ball hits paddle handler
    */
   private ballHitPaddle(ball: any, paddle: any) {
-    // Add angle variation based on where ball hits paddle
-    const diff = ball.x - paddle.x;
     const ballBody = ball.body as Phaser.Physics.Arcade.Body;
     
-    ballBody.setVelocityX(diff * 5);
+    // Calculate deterministic bounce angle based on paddle hit position
+    const angle = calculatePaddleBounceAngle(ball.x, paddle.x, PHYSICS.PADDLE_WIDTH);
+    
+    // Get current speed and apply new angle
+    const currentSpeed = ballBody.velocity.length();
+    const speed = Phaser.Math.Clamp(currentSpeed, PHYSICS.MIN_SPEED, PHYSICS.MAX_SPEED);
+    
+    // Set velocity using angle (always upward)
+    ballBody.setVelocity(
+      Math.sin(angle) * speed,
+      -Math.abs(Math.cos(angle)) * speed
+    );
+    
+    // Apply clamp to ensure velocity stays within bounds
+    const velocity = new Phaser.Math.Vector2(ballBody.velocity.x, ballBody.velocity.y);
+    const clampedVelocity = clampVelocity(velocity);
+    ballBody.setVelocity(clampedVelocity.x, clampedVelocity.y);
   }
 
   /**
@@ -427,17 +420,6 @@ export class MainScene extends Phaser.Scene {
   }
 
   /**
-   * Remove ball from game
-   */
-  private removeBall(ball: Phaser.Physics.Arcade.Sprite) {
-    const index = this.balls.indexOf(ball);
-    if (index > -1) {
-      this.balls.splice(index, 1);
-      ball.destroy();
-    }
-  }
-
-  /**
    * Start the game
    */
   private startGame() {
@@ -446,11 +428,15 @@ export class MainScene extends Phaser.Scene {
     this.gameStarted = true;
     this.instructionText.setVisible(false);
 
-    // Launch ball
-    if (this.balls.length > 0 && this.balls[0].body) {
+    // Launch first ball
+    const firstBall = this.ballPool.getGroup().getFirstAlive();
+    if (firstBall && firstBall.body) {
       const angle = Phaser.Math.Between(-45, 45) * Math.PI / 180;
-      const speed = 300;
-      this.balls[0].body.setVelocity(Math.sin(angle) * speed, -Math.abs(Math.cos(angle)) * speed);
+      const speed = PHYSICS.BASE_SPEED;
+      (firstBall.body as Phaser.Physics.Arcade.Body).setVelocity(
+        Math.sin(angle) * speed,
+        -Math.abs(Math.cos(angle)) * speed
+      );
     }
   }
 
@@ -583,8 +569,7 @@ export class MainScene extends Phaser.Scene {
     this.gameOver = false;
     
     // Clear all balls
-    this.balls.forEach(ball => ball.destroy());
-    this.balls = [];
+    this.ballPool.getGroup().clear(true, true);
     
     // Clear all blocks
     this.blocks.clear(true, true);
