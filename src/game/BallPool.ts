@@ -30,18 +30,13 @@ export class BallPool {
       return activeBalls[0] as Phaser.GameObjects.Arc;
     }
 
-    // Get or create ball
-    let ball = this.group.get(x, y) as Phaser.GameObjects.Arc;
-
-    if (!ball) {
-      // Create new ball if pool is empty
-      ball = this.scene.add.circle(x, y, PHYSICS.BALL_RADIUS, 0x2196f3);
-      this.scene.physics.add.existing(ball);
-      this.group.add(ball);
-    }
-
+    // Always create fresh ball to avoid graphics corruption
+    const ball = this.scene.add.circle(x, y, PHYSICS.BALL_RADIUS, 0x2196f3);
+    this.scene.physics.add.existing(ball);
+    
     // Configure ball
-    ball.setActive(true).setVisible(true).setPosition(x, y);
+    ball.setActive(true).setVisible(true);
+    ball.setDepth(100);
 
     const body = ball.body as Phaser.Physics.Arcade.Body;
     if (body) {
@@ -52,7 +47,7 @@ export class BallPool {
       body.onWorldBounds = true;
     }
 
-    ball.setDepth(100);
+    this.group.add(ball);
 
     return ball;
   }

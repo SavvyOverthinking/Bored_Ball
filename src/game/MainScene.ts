@@ -77,6 +77,12 @@ export class MainScene extends Phaser.Scene {
   update() {
     if (this.gameOver) return;
 
+    // Keep paddle velocity at zero (prevent drift)
+    const paddleBody = this.paddle.body as Phaser.Physics.Arcade.Body;
+    if (paddleBody) {
+      paddleBody.setVelocity(0, 0);
+    }
+
     // Follow mouse with paddle
     if (this.input.activePointer) {
       const pointer = this.input.activePointer;
