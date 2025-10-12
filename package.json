@@ -6,7 +6,10 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "dev:phase2": "cross-env VITE_PHASE2=1 vite --port 3003",
+    "build:phase2": "cross-env VITE_PHASE2=1 vite build --outDir dist-phase2",
     "preview": "vite preview --port 4173",
+    "preview:phase2": "vite preview --port 4174 --outDir dist-phase2",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "format": "prettier --write ."
@@ -26,6 +29,7 @@
     "@typescript-eslint/parser": "^7.0.0",
     "@vitejs/plugin-react": "^4.2.1",
     "autoprefixer": "^10.4.19",
+    "cross-env": "^7.0.3",
     "eslint": "^8.57.0",
     "eslint-config-prettier": "^9.1.0",
     "eslint-plugin-react": "^7.34.0",
