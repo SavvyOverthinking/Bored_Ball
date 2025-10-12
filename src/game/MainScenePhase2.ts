@@ -1093,7 +1093,7 @@ export class MainScenePhase2 extends Phaser.Scene {
     });
   }
 
-  public grantShield(_count: number) {
+  public grantShield() {
     this.shieldActive = true;
     this.showPowerUpStatus('🛡️ Shield Active');
   }
@@ -1131,7 +1131,7 @@ export class MainScenePhase2 extends Phaser.Scene {
     console.log(`📅 Cleared ${blocksToDestroy.length} meetings from hour row`);
   }
 
-  public convertRandomBlocks(count: number, _toType: string) {
+  public convertRandomBlocks(count: number) {
     const blocks = Phaser.Math.RND.shuffle(this.blocks.getChildren())
       .slice(0, count);
     

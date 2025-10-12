@@ -127,7 +127,7 @@ export function computeColumns(meetings: Meeting[]): RenderItem[] {
   
   const out: RenderItem[] = [];
   
-  for (const [_day, list] of byDay) {
+  for (const [, list] of byDay) {
     // Sort by start time, then by duration (longer first for better visual stacking)
     list.sort((a, b) => 
       a.startMin - b.startMin || 
