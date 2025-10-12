@@ -53,7 +53,10 @@ export class MainScene extends Phaser.Scene {
   }
 
   preload() {
-    // Load splash screen image
+    // Load splash screen image (optional - will use fallback if missing)
+    this.load.on('loaderror', () => {
+      console.log('Splash image not found, will use fallback');
+    });
     this.load.image('splash', '/splash.jpg');
   }
 
@@ -117,8 +120,8 @@ export class MainScene extends Phaser.Scene {
       paddleBody.setVelocity(0, 0);
     }
 
-    // Follow mouse with paddle
-    if (this.input.activePointer && !this.isPaused && !this.isCountingDown) {
+    // Follow mouse with paddle (only when not paused, counting down, or splash visible)
+    if (this.input.activePointer && !this.isPaused && !this.isCountingDown && !this.splashImage.visible) {
       const pointer = this.input.activePointer;
       this.paddle.x = Phaser.Math.Clamp(pointer.x, 50, getBoardDimensions().width - 50);
     }
@@ -665,12 +668,62 @@ export class MainScene extends Phaser.Scene {
   private createSplashScreen() {
     const { width, height } = getBoardDimensions();
     
-    // Create splash image (centered and scaled to fit)
-    this.splashImage = this.add.image(width / 2, height / 2, 'splash');
+    // Try to create splash image, fallback to graphics if not loaded
+    if (this.textures.exists('splash')) {
+      this.splashImage = this.add.image(width / 2, height / 2, 'splash');
+      
+      // Scale to fit the game area while maintaining aspect ratio
+      const scale = Math.min(width / this.splashImage.width, height / this.splashImage.height) * 0.95;
+      this.splashImage.setScale(scale);
+    } else {
+      // Create fallback splash screen using graphics
+      const graphics = this.add.graphics();
+      
+      // Background
+      graphics.fillStyle(0x1a1a2e, 1);
+      graphics.fillRect(0, 0, width, height);
+      
+      // Border
+      graphics.lineStyle(8, 0xFF6600, 1);
+      graphics.strokeRect(20, 20, width - 40, height - 40);
+      
+      // Title area
+      graphics.fillStyle(0x16213E, 1);
+      graphics.fillRoundedRect(width / 2 - 300, 80, 600, 120, 10);
+      
+      // Generate texture from graphics
+      graphics.generateTexture('fallback_splash', width, height);
+      graphics.destroy();
+      
+      this.splashImage = this.add.image(width / 2, height / 2, 'fallback_splash');
+      
+      // Add text overlay for fallback
+      const titleText = this.add.text(width / 2, 140, '📅 CALENDAR BREAKOUT', {
+        fontFamily: 'Impact, Arial Black, sans-serif',
+        fontSize: '48px',
+        color: '#00D9FF',
+        stroke: '#FF6600',
+        strokeThickness: 4
+      }).setOrigin(0.5).setDepth(1001);
+      
+      const subtitleText = this.add.text(width / 2, 200, 'DESTROY YOUR MEETINGS!', {
+        fontFamily: 'Arial Black, sans-serif',
+        fontSize: '24px',
+        color: '#FFD700'
+      }).setOrigin(0.5).setDepth(1001);
+      
+      const instructText = this.add.text(width / 2, height - 100, 'Click anywhere to start', {
+        fontFamily: 'Arial, sans-serif',
+        fontSize: '20px',
+        color: '#FFFFFF',
+        backgroundColor: '#FF6600',
+        padding: { x: 20, y: 10 }
+      }).setOrigin(0.5).setDepth(1001);
+      
+      // Store references to hide them with splash
+      (this.splashImage as any).overlayTexts = [titleText, subtitleText, instructText];
+    }
     
-    // Scale to fit the game area while maintaining aspect ratio
-    const scale = Math.min(width / this.splashImage.width, height / this.splashImage.height) * 0.95;
-    this.splashImage.setScale(scale);
     this.splashImage.setDepth(1000); // On top of everything
     this.splashImage.setVisible(false);
     this.splashImage.setInteractive({ useHandCursor: true });
@@ -697,6 +750,13 @@ export class MainScene extends Phaser.Scene {
    */
   private showSplashScreen() {
     this.splashImage.setVisible(true);
+    
+    // Show overlay texts if using fallback splash
+    const overlayTexts = (this.splashImage as any).overlayTexts;
+    if (overlayTexts) {
+      overlayTexts.forEach((text: any) => text.setVisible(true));
+    }
+    
     this.instructionText.setVisible(false);
     this.gameStarted = false;
     this.isCountingDown = false;
@@ -707,6 +767,13 @@ export class MainScene extends Phaser.Scene {
    */
   private hideSplashAndStartCountdown() {
     this.splashImage.setVisible(false);
+    
+    // Hide overlay texts if using fallback splash
+    const overlayTexts = (this.splashImage as any).overlayTexts;
+    if (overlayTexts) {
+      overlayTexts.forEach((text: any) => text.setVisible(false));
+    }
+    
     this.startCountdown();
   }
 
