@@ -18,7 +18,10 @@ jobs:
       - name: Build Phase 2
         env:
           VITE_PHASE2: '1'
-        run: npm run build
+        run: |
+          echo "Environment check:"
+          echo "VITE_PHASE2=$VITE_PHASE2"
+          npm run build
       - name: Verify build output
         run: |
           echo "Files in dist before rename:"
