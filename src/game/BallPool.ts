@@ -56,14 +56,17 @@ export class BallPool {
    * Kill balls that are offscreen
    */
   killIfOffscreen(): void {
+    const toRemove: any[] = [];
     this.group.children.iterate((child: any) => {
       if (child.active && child.y > CANVAS.HEIGHT + 30) {
-        child.setActive(false).setVisible(false);
-        if (child.body) {
-          child.body.setVelocity(0, 0);
-        }
+        toRemove.push(child);
       }
       return true;
+    });
+    
+    // Actually destroy offscreen balls
+    toRemove.forEach((ball) => {
+      this.group.remove(ball, true, true); // Remove and destroy
     });
   }
 
