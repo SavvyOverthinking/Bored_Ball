@@ -45,7 +45,10 @@ jobs:
             ${{ runner.os }}-pnpm-store-
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile --prefer-offline
+        run: pnpm install --no-frozen-lockfile
+
+      - name: Explicitly install Rollup binary
+        run: pnpm add -D @rollup/rollup-linux-x64-gnu
 
       - name: Build
         run: pnpm run build
