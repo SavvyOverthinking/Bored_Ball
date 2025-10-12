@@ -18,6 +18,9 @@ export class MainScene extends Phaser.Scene {
   private blockDataMap: Map<string, BlockData> = new Map();
   private blockHitPoints: Map<string, number> = new Map();
   
+  // Ball stuck detection
+  private ballPositionHistory: Map<any, Array<{x: number, y: number, time: number}>> = new Map();
+  
   // Game state
   private score: number = 0;
   private lives: number = 3;
@@ -99,28 +102,61 @@ export class MainScene extends Phaser.Scene {
       this.winGame();
     }
 
-    // Prevent balls from getting stuck in horizontal bounces
+    // Prevent balls from getting stuck in horizontal or repetitive bounces
     if (this.gameStarted) {
+      const currentTime = this.time.now;
+      
       this.ballPool.getGroup().children.iterate((ball: any) => {
         if (ball.active && ball.body) {
           const body = ball.body as Phaser.Physics.Arcade.Body;
           const absVelocityY = Math.abs(body.velocity.y);
           
-          // If ball is moving too horizontally (stuck in horizontal bounce)
-          if (absVelocityY < 80) {
-            const speed = body.velocity.length();
-            const currentAngle = Math.atan2(body.velocity.y, body.velocity.x);
+          // Track ball position history
+          if (!this.ballPositionHistory.has(ball)) {
+            this.ballPositionHistory.set(ball, []);
+          }
+          const history = this.ballPositionHistory.get(ball)!;
+          history.push({ x: ball.x, y: ball.y, time: currentTime });
+          
+          // Keep only last 60 frames (1 second at 60fps)
+          if (history.length > 60) {
+            history.shift();
+          }
+          
+          let needsCorrection = false;
+          
+          // Check 1: Ball moving too horizontally
+          if (absVelocityY < 120) {
+            needsCorrection = true;
+          }
+          
+          // Check 2: Ball stuck in small area (repetitive pattern)
+          if (history.length >= 30) {
+            const recent = history.slice(-30);
+            const avgY = recent.reduce((sum, p) => sum + p.y, 0) / recent.length;
+            const yVariance = recent.reduce((sum, p) => sum + Math.pow(p.y - avgY, 2), 0) / recent.length;
             
-            // Add downward velocity component
-            const minAngle = body.velocity.y > 0 ? Math.PI / 6 : -Math.PI / 6; // 30 degrees
-            const newAngle = body.velocity.y > 0 ? 
-              Math.max(minAngle, currentAngle) : 
-              Math.min(-minAngle, currentAngle);
+            // If ball has been in roughly the same Y position for 30 frames (stuck pattern)
+            if (yVariance < 400) { // Standard deviation less than ~20 pixels
+              needsCorrection = true;
+            }
+          }
+          
+          // Apply correction
+          if (needsCorrection) {
+            const speed = Phaser.Math.Clamp(body.velocity.length(), PHYSICS.MIN_SPEED, PHYSICS.MAX_SPEED);
+            
+            // Force a more vertical angle (45-75 degrees from horizontal)
+            const randomAngle = Phaser.Math.Between(45, 75) * Math.PI / 180;
+            const direction = body.velocity.y > 0 ? 1 : -1;
             
             body.setVelocity(
-              Math.cos(newAngle) * speed,
-              Math.sin(newAngle) * speed
+              Math.cos(randomAngle) * speed * (body.velocity.x > 0 ? 1 : -1),
+              Math.sin(randomAngle) * speed * direction
             );
+            
+            // Clear history to give it a fresh start
+            this.ballPositionHistory.set(ball, []);
           }
         }
         return true;
@@ -604,6 +640,7 @@ export class MainScene extends Phaser.Scene {
     
     // Clear all balls
     this.ballPool.getGroup().clear(true, true);
+    this.ballPositionHistory.clear();
     
     // Clear all blocks
     this.blocks.clear(true, true);
