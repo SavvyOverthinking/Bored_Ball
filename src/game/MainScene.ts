@@ -52,12 +52,24 @@ export class MainScene extends Phaser.Scene {
   }
 
   create() {
+    // Reset all game state explicitly on scene restart
+    this.gameStarted = false;
+    this.gameOver = false;
+    this.isPaused = false;
+    this.escapePressed = false;
+    this.stuckCheckCounter = 0;
+    this.ballPositionHistory.clear();
+    this.ballCorrectionCooldown.clear();
+    this.score = 0;
+    this.lives = 3;
+    this.currentWeek = 1;
+    
     const { width, height } = getBoardDimensions();
 
     // Set background (lighter, more Outlook-like)
     this.add.rectangle(width / 2, height / 2, width, height, 0xfafbfc);
 
-    // Load saved progress
+    // Load saved progress (will overwrite week/score if exists)
     this.loadProgress();
 
     // Initialize ball pool
