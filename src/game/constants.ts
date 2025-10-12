@@ -38,3 +38,32 @@ export function clampVelocity(v: Phaser.Math.Vector2): Phaser.Math.Vector2 {
   return v.setLength(len);
 }
 
+/**
+ * Calculate deterministic paddle bounce angle
+ * @param ballX - Ball X position
+ * @param paddleX - Paddle center X
+ * @param paddleWidth - Paddle width
+ * @returns Angle in radians
+ */
+export function calculatePaddleBounceAngle(
+  ballX: number,
+  paddleX: number,
+  paddleWidth: number
+): number {
+  // Get relative position on paddle (-1 to 1)
+  const relativePos = (ballX - paddleX) / (paddleWidth / 2);
+  const clampedPos = Phaser.Math.Clamp(relativePos, -1, 1);
+
+  // Map to angle (-60° to 60°)
+  const angle = Phaser.Math.DegToRad(Phaser.Math.Linear(-60, 60, (clampedPos + 1) / 2));
+
+  return angle;
+}
+
+/**
+ * Check if reduced motion is preferred
+ */
+export function prefersReducedMotion(): boolean {
+  return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+}
+
