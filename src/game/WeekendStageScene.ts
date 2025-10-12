@@ -145,6 +145,11 @@ export default class WeekendStageScene extends Phaser.Scene {
   private createPaddle() {
     const { width, height } = getBoardDimensions();
     
+    // Release any existing pointer lock from main game
+    if (document.pointerLockElement) {
+      document.exitPointerLock();
+    }
+    
     // Create paddle graphics if it doesn't exist as texture
     if (!this.textures.exists('weekend_paddle')) {
       const graphics = this.add.graphics();
@@ -158,7 +163,7 @@ export default class WeekendStageScene extends Phaser.Scene {
     this.paddle.setImmovable(true);
     this.paddle.setCollideWorldBounds(true);
     
-    // Set default cursor to none when over canvas
+    // Set default cursor to visible
     this.input.setDefaultCursor('default');
     
     // Mouse/touch control - update paddle position continuously
@@ -198,26 +203,35 @@ export default class WeekendStageScene extends Phaser.Scene {
     cols.forEach((x, i) => {
       const email = this.createEmailSprite(x, -20);
       
+      // Ensure email body exists and has physics enabled
+      if (!email.body) {
+        console.error('Email has no physics body!');
+        return;
+      }
+      
+      const body = email.body as Phaser.Physics.Arcade.Body;
+      
+      // Critical: Allow emails to fall through bottom
+      body.setCollideWorldBounds(false);
+      body.setBounce(0); // No bouncing
+      
       // Base falling speed
       const baseSpeed = Phaser.Math.Between(120, 200);
-      email.setVelocityY(baseSpeed);
+      body.setVelocityY(baseSpeed);
       
       // Pattern-specific movement
       switch (pattern) {
         case 'zig':
-          email.setVelocityX(i % 2 === 0 ? 60 : -60);
+          body.setVelocityX(i % 2 === 0 ? 60 : -60);
           break;
         case 'v':
-          email.setVelocityX((i - 2.5) * 20);
+          body.setVelocityX((i - 2.5) * 20);
           break;
         case 'random':
-          email.setVelocityX(Phaser.Math.Between(-80, 80));
+          body.setVelocityX(Phaser.Math.Between(-80, 80));
           break;
         // 'line' - no horizontal movement
       }
-      
-      email.setBounce(0.2);
-      email.setCollideWorldBounds(true);
       
       this.emailsSpawned++;
     });

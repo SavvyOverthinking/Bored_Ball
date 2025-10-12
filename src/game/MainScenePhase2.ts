@@ -1119,20 +1119,36 @@ export class MainScenePhase2 extends Phaser.Scene {
       ease: 'Sine.easeInOut'
     });
     
+    // Auto-destroy powerup after lifespan (NO effect given)
+    this.time.delayedCall(POWERUP_CONFIG.FLOAT_SPEED * 10, () => {
+      if (this.powerUpIcon) {
+        console.log(`⏱️ Power-up expired (not collected)`);
+        this.powerUpIcon.destroy();
+        this.powerUpIcon = undefined;
+        // Note: powerUpSpawned stays true (only 1 per week)
+      }
+    });
+    
     this.powerUpSpawned = true;
-    console.log(`⚡ Power-up spawned: ${powerUp.label}`);
+    console.log(`⚡ Power-up spawned: ${powerUp.label} (will expire in ${POWERUP_CONFIG.FLOAT_SPEED * 10 / 1000}s)`);
   }
 
   private collectPowerUp(_ball: any, powerUpContainer: any) {
     if (!this.powerUpIcon) return;
+    
+    // Prevent double-collection
+    if (!powerUpContainer.active) return;
     
     const powerUpType = powerUpContainer.list[0].getData('powerUpType') as PowerUpKind;
     const powerUp = POWERUPS[powerUpType];
     
     console.log(`✨ Collected power-up: ${powerUp.label}`);
     
-    // Apply effect
+    // Apply effect ONLY when collected by ball
     powerUp.apply(this);
+    
+    // Play collection sound
+    sound.paddleHit(); // Use paddle sound for now
     
     // Destroy icon
     this.powerUpIcon.destroy();
