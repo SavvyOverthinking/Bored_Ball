@@ -33,6 +33,7 @@ export class MainScene extends Phaser.Scene {
   private gameOver: boolean = false;
   private isPaused: boolean = false;
   private escapePressed: boolean = false;
+  private pointerLocked: boolean = false;
   
   // UI elements
   private scoreText!: Phaser.GameObjects.Text;
@@ -122,11 +123,8 @@ export class MainScene extends Phaser.Scene {
       paddleBody.setVelocity(0, 0);
     }
 
-    // Follow mouse with paddle (only when not paused, counting down, or splash visible)
-    if (this.input.activePointer && !this.isPaused && !this.isCountingDown && !this.splashImage.visible) {
-      const pointer = this.input.activePointer;
-      this.paddle.x = Phaser.Math.Clamp(pointer.x, 50, getBoardDimensions().width - 50);
-    }
+    // Paddle movement is now handled in setupInput via pointermove event
+    // This allows for proper pointer lock support
 
     // Handle splash screen click (start countdown)
     if (this.splashImage.visible && this.input.activePointer.isDown) {
@@ -438,9 +436,38 @@ export class MainScene extends Phaser.Scene {
    * Setup input handlers
    */
   private setupInput() {
+    const { width } = getBoardDimensions();
+    
+    // Set up pointer lock on canvas click when game is active
+    this.input.on('pointerdown', () => {
+      if (this.gameStarted && !this.gameOver && !this.isPaused && !this.isCountingDown && !this.splashImage.visible) {
+        const canvas = this.game.canvas;
+        if (canvas && !this.pointerLocked) {
+          canvas.requestPointerLock();
+        }
+      }
+    });
+    
+    // Listen for pointer lock changes
+    document.addEventListener('pointerlockchange', () => {
+      this.pointerLocked = document.pointerLockElement === this.game.canvas;
+    });
+    
+    // Handle pointer movement
     this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
-      if (!this.gameOver && !this.isPaused) {
-        this.paddle.x = Phaser.Math.Clamp(pointer.x, 50, getBoardDimensions().width - 50);
+      if (this.gameOver || this.isPaused || this.isCountingDown || this.splashImage.visible) return;
+      
+      if (this.pointerLocked) {
+        // Use relative movement when pointer is locked
+        const movementX = pointer.movementX || 0;
+        this.paddle.x = Phaser.Math.Clamp(
+          this.paddle.x + movementX * 1.5, // Sensitivity multiplier
+          50, 
+          width - 50
+        );
+      } else {
+        // Fallback to absolute positioning when not locked
+        this.paddle.x = Phaser.Math.Clamp(pointer.x, 50, width - 50);
       }
     });
 
@@ -938,6 +965,12 @@ export class MainScene extends Phaser.Scene {
   private pauseGame() {
     this.isPaused = true;
     this.physics.pause();
+    
+    // Release pointer lock when pausing
+    if (this.pointerLocked) {
+      document.exitPointerLock();
+    }
+    
     this.showOverlay('⏸️  PAUSED', 'Press ESC again to QUIT and restart\nClick anywhere to resume playing');
     
     // Click to resume
