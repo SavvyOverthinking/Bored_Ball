@@ -49,6 +49,7 @@ export class MainScenePhase2 extends Phaser.Scene {
   // UI elements
   private scoreText!: Phaser.GameObjects.Text;
   private livesText!: Phaser.GameObjects.Text;
+  private weekText!: Phaser.GameObjects.Text;
   private instructionText!: Phaser.GameObjects.Text;
   private overlayBg!: Phaser.GameObjects.Rectangle;
   private overlayText!: Phaser.GameObjects.Text;
@@ -732,28 +733,27 @@ export class MainScenePhase2 extends Phaser.Scene {
   private createUI() {
     const { width } = getBoardDimensions();
 
-    this.scoreText = this.add.text(width - 20, 10, 'Score: 0', {
+    this.scoreText = this.add.text(width - 20, 10, `Score: ${this.score}`, {
       fontFamily: 'Segoe UI, Inter, sans-serif',
       fontSize: '14px',
       color: '#323130',
       fontStyle: '600',
     }).setOrigin(1, 0);
 
-    this.livesText = this.add.text(width - 20, 32, 'Lives: 3', {
+    this.livesText = this.add.text(width - 20, 32, `Lives: ${this.lives}`, {
       fontFamily: 'Segoe UI, Inter, sans-serif',
       fontSize: '14px',
       color: '#323130',
       fontStyle: '600',
     }).setOrigin(1, 0);
 
-    // Week counter text (store reference for updates)
-    const weekText = this.add.text(20, 10, `Week: ${this.currentWeek} / 52`, {
+    // Week counter text (store as class property for updates)
+    this.weekText = this.add.text(20, 10, `Week: ${this.currentWeek} / ${this.totalWeeks}`, {
       fontFamily: 'Segoe UI, Inter, sans-serif',
       fontSize: '14px',
       color: '#0078d4',
       fontStyle: '600',
     }).setOrigin(0, 0);
-    weekText.setName('weekText'); // Name it so we can find it later
 
     this.instructionText = this.add.text(width / 2, 280, 'Move paddle to clear your meetings\nClick to start', {
       fontFamily: 'Segoe UI, Inter, sans-serif',
@@ -917,11 +917,11 @@ export class MainScenePhase2 extends Phaser.Scene {
   }
 
   private updateWeek() {
-    // Find and update the week text
-    const weekText = this.children.getByName('weekText') as Phaser.GameObjects.Text;
-    if (weekText) {
-      weekText.setText(`Week: ${this.currentWeek} / ${this.totalWeeks}`);
+    if (this.weekText) {
+      this.weekText.setText(`Week: ${this.currentWeek} / ${this.totalWeeks}`);
       console.log(`📅 Week UI updated: ${this.currentWeek} / ${this.totalWeeks}`);
+    } else {
+      console.error('❌ weekText not found!');
     }
   }
 
