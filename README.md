@@ -1,4 +1,10 @@
-[![Play Online](https://img.shields.io/badge/play-live-green)](https://savvyoverthinking.github.io/Bored_Ball/)
+<p align="center">
+  <img src="public/splash.jpg" alt="Calendar Breakout - Destroy Your Meetings!" width="600" />
+</p>
+
+<p align="center">
+  <a href="https://savvyoverthinking.github.io/Bored_Ball/"><img src="https://img.shields.io/badge/🎮_PLAY_NOW-Live_Game-brightgreen?style=for-the-badge" alt="Play Online" /></a>
+</p>
 
 # 📅 Calendar Breakout
 
