@@ -45,6 +45,7 @@ export class MainScene extends Phaser.Scene {
   
   // Splash screen elements
   private splashImage!: Phaser.GameObjects.Image;
+  private splashOverlay!: Phaser.GameObjects.Rectangle;
   private countdownText!: Phaser.GameObjects.Text;
   private isCountingDown: boolean = false;
 
@@ -669,6 +670,11 @@ export class MainScene extends Phaser.Scene {
   private createSplashScreen() {
     const { width, height } = getBoardDimensions();
     
+    // Create dim overlay (like pause overlay)
+    this.splashOverlay = this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.7);
+    this.splashOverlay.setDepth(999); // Behind splash but on top of game
+    this.splashOverlay.setVisible(false);
+    
     // Try to create splash image, fallback to graphics if not loaded
     if (this.textures.exists('splash')) {
       this.splashImage = this.add.image(width / 2, height / 2, 'splash');
@@ -750,6 +756,7 @@ export class MainScene extends Phaser.Scene {
    * Show splash screen
    */
   private showSplashScreen() {
+    this.splashOverlay.setVisible(true); // Dim the background
     this.splashImage.setVisible(true);
     
     // Show overlay texts if using fallback splash
@@ -775,6 +782,7 @@ export class MainScene extends Phaser.Scene {
       overlayTexts.forEach((text: any) => text.setVisible(false));
     }
     
+    // Keep overlay visible during countdown (dim background)
     this.startCountdown();
   }
 
@@ -797,8 +805,9 @@ export class MainScene extends Phaser.Scene {
         if (count > 0) {
           this.countdownText.setText(count.toString());
         } else {
-          // Countdown finished
+          // Countdown finished - hide overlay and text
           this.countdownText.setVisible(false);
+          this.splashOverlay.setVisible(false); // Remove dim overlay
           this.isCountingDown = false;
           this.instructionText.setVisible(true);
           this.instructionText.setText(`Week ${this.currentWeek} - Click to launch!`);
