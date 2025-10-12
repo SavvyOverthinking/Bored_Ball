@@ -49,31 +49,29 @@ export function generateWeek(week: number): Meeting[] {
 function generateWeek1Onboarding(): Meeting[] {
   const meetings: Meeting[] = [];
   
-  // Lunch is typically 12:00 PM = 180 minutes from 9 AM
-  const lunchStartMin = 180; // 12:00 PM
-  
-  // For each day (Mon-Fri)
+  // For each day (Mon-Fri), place blocks HIGH UP (early in the day) to make them easy to hit
   for (let day = 0; day < 5; day++) {
-    // One 2-hour onboarding block BEFORE lunch (10:00-12:00)
+    // One 2-hour onboarding block EARLY morning (9:00-11:00 AM)
+    // startMin = 0 means 9:00 AM (start of work day) - as high as possible!
     meetings.push({
       day,
-      startMin: lunchStartMin - 120, // 10:00 AM
-      endMin: lunchStartMin,          // 12:00 PM
-      type: 'personal',               // Grey color
+      startMin: 0,      // 9:00 AM (top of calendar)
+      endMin: 120,      // 11:00 AM
+      type: 'personal', // Grey color
       title: 'Onboarding'
     });
     
-    // One 2-hour onboarding block AFTER lunch (1:00-3:00 PM)
+    // One 2-hour onboarding block late morning (11:00 AM-1:00 PM)
     meetings.push({
       day,
-      startMin: lunchStartMin + 60,   // 1:00 PM
-      endMin: lunchStartMin + 180,    // 3:00 PM
-      type: 'personal',               // Grey color
+      startMin: 120,    // 11:00 AM
+      endMin: 240,      // 1:00 PM
+      type: 'personal', // Grey color
       title: 'Onboarding'
     });
   }
   
-  console.log(`✅ Week 1: ${meetings.length} onboarding blocks (2 per day × 5 days)`);
+  console.log(`✅ Week 1: ${meetings.length} onboarding blocks (2 per day × 5 days) - positioned HIGH for easy hits`);
   return meetings;
 }
 

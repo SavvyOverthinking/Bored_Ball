@@ -87,6 +87,17 @@ export default class WeekendStageScene extends Phaser.Scene {
     });
   }
 
+  update() {
+    const { height } = getBoardDimensions();
+    
+    // Clean up emails that have fallen off the bottom of the screen
+    this.emails.getChildren().forEach((email: any) => {
+      if (email.active && email.y > height + 50) {
+        email.destroy();
+      }
+    });
+  }
+
   private drawWeekendUI() {
     const { width } = getBoardDimensions();
     
@@ -147,8 +158,18 @@ export default class WeekendStageScene extends Phaser.Scene {
     this.paddle.setImmovable(true);
     this.paddle.setCollideWorldBounds(true);
     
-    // Mouse/touch control
+    // Set default cursor to none when over canvas
+    this.input.setDefaultCursor('default');
+    
+    // Mouse/touch control - update paddle position continuously
     this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
+      if (this.alive) {
+        this.paddle.x = Phaser.Math.Clamp(pointer.x, 60, width - 60);
+      }
+    });
+    
+    // Also update on pointer down to ensure immediate response
+    this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
       if (this.alive) {
         this.paddle.x = Phaser.Math.Clamp(pointer.x, 60, width - 60);
       }
@@ -226,6 +247,8 @@ export default class WeekendStageScene extends Phaser.Scene {
     
     const email = this.emails.create(x, y, 'email_sprite') as Phaser.Physics.Arcade.Image;
     email.setCircle(12); // Circular hit box
+    email.setCollideWorldBounds(false); // Allow emails to fall off screen
+    this.emailsSpawned++;
     return email;
   }
 
