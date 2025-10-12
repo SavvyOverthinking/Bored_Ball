@@ -10,8 +10,8 @@ import { sound } from './soundEffects';
 
 interface WeekendStageData {
   week: number;
-  currentScore: number;
-  lives: number;
+  score?: number;
+  lives?: number;
 }
 
 export default class WeekendStageScene extends Phaser.Scene {
@@ -24,9 +24,6 @@ export default class WeekendStageScene extends Phaser.Scene {
   
   // UI elements
   private timerText!: Phaser.GameObjects.Text;
-  private titleText!: Phaser.GameObjects.Text;
-  private instructionText!: Phaser.GameObjects.Text;
-  private scoreText!: Phaser.GameObjects.Text;
   
   // Game data
   private weekData!: WeekendStageData;
@@ -38,14 +35,18 @@ export default class WeekendStageScene extends Phaser.Scene {
   }
 
   init(data: WeekendStageData) {
-    this.weekData = data;
+    this.weekData = {
+      week: data.week,
+      score: data.score || 0,
+      lives: data.lives || 3
+    };
     this.alive = true;
     this.emailsSpawned = 0;
     this.emailsTouched = 0;
   }
 
   create() {
-    const { width, height } = getBoardDimensions();
+    getBoardDimensions(); // Get dimensions for reference
     
     // Weekend sky blue background
     this.cameras.main.setBackgroundColor('#E3F2FD');
@@ -97,7 +98,7 @@ export default class WeekendStageScene extends Phaser.Scene {
     badge.strokeRoundedRect(width / 2 - 150, 20, 300, 60, 10);
     
     // Title
-    this.titleText = this.add.text(width / 2, 50, '🌴 WEEKEND BONUS STAGE 🌴', {
+    this.add.text(width / 2, 50, '🌴 WEEKEND BONUS STAGE 🌴', {
       fontFamily: 'Impact, Arial Black, sans-serif',
       fontSize: '28px',
       color: '#FFFFFF',
@@ -106,7 +107,7 @@ export default class WeekendStageScene extends Phaser.Scene {
     }).setOrigin(0.5);
     
     // Instructions
-    this.instructionText = this.add.text(width / 2, 110, '⚠️ DON\'T TOUCH THE EMAILS! ⚠️', {
+    this.add.text(width / 2, 110, '⚠️ DON\'T TOUCH THE EMAILS! ⚠️', {
       fontFamily: 'Inter, sans-serif',
       fontSize: '20px',
       color: '#D32F2F',
@@ -122,7 +123,7 @@ export default class WeekendStageScene extends Phaser.Scene {
     }).setOrigin(0.5);
     
     // Score display
-    this.scoreText = this.add.text(20, 20, `Score: ${this.weekData.currentScore}`, {
+    this.add.text(20, 20, `Score: ${this.weekData.score || 0}`, {
       fontFamily: 'Inter, sans-serif',
       fontSize: '16px',
       color: '#424242',
@@ -162,7 +163,8 @@ export default class WeekendStageScene extends Phaser.Scene {
     for (let w = 0; w < waves; w++) {
       this.time.delayedCall(w * 5000, () => {
         if (this.alive) {
-          const pattern = Phaser.Math.RND.pick(['line', 'zig', 'v', 'random']);
+          const patterns: ('line' | 'zig' | 'v' | 'random')[] = ['line', 'zig', 'v', 'random'];
+          const pattern = patterns[Math.floor(Math.random() * patterns.length)];
           this.patternFall(pattern);
         }
       });
@@ -170,7 +172,6 @@ export default class WeekendStageScene extends Phaser.Scene {
   }
 
   private patternFall(pattern: 'line' | 'zig' | 'v' | 'random') {
-    const { width } = getBoardDimensions();
     const cols = [120, 260, 400, 540, 680, 820];
     
     cols.forEach((x, i) => {
@@ -304,7 +305,7 @@ export default class WeekendStageScene extends Phaser.Scene {
     overlay.setDepth(1000);
     
     // Result text
-    const resultText = this.add.text(
+    this.add.text(
       width / 2,
       height / 2 - 60,
       success ? '🎉 WEEKEND SURVIVED! 🎉' : '💥 EMAIL OVERLOAD! 💥',
@@ -318,7 +319,7 @@ export default class WeekendStageScene extends Phaser.Scene {
     ).setOrigin(0.5).setDepth(1001);
     
     // Bonus score
-    const bonusText = this.add.text(
+    this.add.text(
       width / 2,
       height / 2,
       success ? `Bonus: +${bonus} points!` : 'No bonus...',
@@ -331,7 +332,7 @@ export default class WeekendStageScene extends Phaser.Scene {
     ).setOrigin(0.5).setDepth(1001);
     
     // Stats
-    const statsText = this.add.text(
+    this.add.text(
       width / 2,
       height / 2 + 50,
       `Emails dodged: ${this.emailsSpawned - this.emailsTouched} / ${this.emailsSpawned}`,
@@ -368,7 +369,7 @@ export default class WeekendStageScene extends Phaser.Scene {
     // Return to main calendar scene with bonus
     this.scene.start('CalendarScenePhase2', {
       week: this.weekData.week,
-      score: this.weekData.currentScore + bonus,
+      score: (this.weekData.score || 0) + bonus,
       lives: this.weekData.lives,
       fromWeekendBonus: true
     });

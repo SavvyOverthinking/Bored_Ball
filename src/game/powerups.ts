@@ -4,8 +4,6 @@
  * Maximum ONE power-up per week
  */
 
-import type Phaser from 'phaser';
-
 export type PowerUpKind = 'coffee' | 'happyHour' | 'dnd' | 'reschedule' | 'cleanup';
 
 export interface PowerUpDefinition {
@@ -79,7 +77,8 @@ export const getAllPowerUps = (): PowerUpDefinition[] => {
  */
 export const getRandomPowerUp = (exclude: PowerUpKind[] = []): PowerUpDefinition => {
   const available = getAllPowerUps().filter(pu => !exclude.includes(pu.id));
-  return Phaser.Math.RND.pick(available);
+  const randomIndex = Math.floor(Math.random() * available.length);
+  return available[randomIndex];
 };
 
 /**
