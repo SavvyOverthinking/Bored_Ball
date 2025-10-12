@@ -42,13 +42,19 @@ export class MainScene extends Phaser.Scene {
   private overlayBg!: Phaser.GameObjects.Rectangle;
   private overlayText!: Phaser.GameObjects.Text;
   private overlaySubtext!: Phaser.GameObjects.Text;
+  
+  // Splash screen elements
+  private splashImage!: Phaser.GameObjects.Image;
+  private countdownText!: Phaser.GameObjects.Text;
+  private isCountingDown: boolean = false;
 
   constructor() {
     super({ key: 'MainScene' });
   }
 
   preload() {
-    // No assets needed - we'll use graphics
+    // Load splash screen image
+    this.load.image('splash', '/splash.jpg');
   }
 
   create() {
@@ -57,6 +63,7 @@ export class MainScene extends Phaser.Scene {
     this.gameOver = false;
     this.isPaused = false;
     this.escapePressed = false;
+    this.isCountingDown = false;
     this.stuckCheckCounter = 0;
     this.ballPositionHistory.clear();
     this.ballCorrectionCooldown.clear();
@@ -95,6 +102,12 @@ export class MainScene extends Phaser.Scene {
 
     // Setup collisions
     this.setupCollisions();
+    
+    // Create splash screen and countdown (hidden initially)
+    this.createSplashScreen();
+    
+    // Show splash screen on first load
+    this.showSplashScreen();
   }
 
   update() {
@@ -105,19 +118,25 @@ export class MainScene extends Phaser.Scene {
     }
 
     // Follow mouse with paddle
-    if (this.input.activePointer && !this.isPaused) {
+    if (this.input.activePointer && !this.isPaused && !this.isCountingDown) {
       const pointer = this.input.activePointer;
       this.paddle.x = Phaser.Math.Clamp(pointer.x, 50, getBoardDimensions().width - 50);
     }
 
+    // Handle splash screen click (start countdown)
+    if (this.splashImage.visible && this.input.activePointer.isDown) {
+      this.hideSplashAndStartCountdown();
+      return;
+    }
+
     // Start game on click if not started (allow even when gameOver for initial start)
-    if (!this.gameStarted && !this.isPaused && this.input.activePointer.isDown) {
+    if (!this.gameStarted && !this.isPaused && !this.isCountingDown && this.input.activePointer.isDown) {
       this.gameOver = false; // Ensure gameOver is false when starting
       this.startGame();
     }
 
-    // Early return for paused/gameOver states AFTER handling initial click
-    if (this.gameOver || this.isPaused) return;
+    // Early return for paused/gameOver/countdown states AFTER handling initial click
+    if (this.gameOver || this.isPaused || this.isCountingDown) return;
 
     // Check if all blocks destroyed
     if (this.blocks.getLength() === 0 && this.gameStarted && !this.gameOver) {
@@ -641,6 +660,86 @@ export class MainScene extends Phaser.Scene {
   }
 
   /**
+   * Create splash screen and countdown text
+   */
+  private createSplashScreen() {
+    const { width, height } = getBoardDimensions();
+    
+    // Create splash image (centered and scaled to fit)
+    this.splashImage = this.add.image(width / 2, height / 2, 'splash');
+    
+    // Scale to fit the game area while maintaining aspect ratio
+    const scale = Math.min(width / this.splashImage.width, height / this.splashImage.height) * 0.95;
+    this.splashImage.setScale(scale);
+    this.splashImage.setDepth(1000); // On top of everything
+    this.splashImage.setVisible(false);
+    this.splashImage.setInteractive({ useHandCursor: true });
+    
+    // Create countdown text (hidden initially)
+    this.countdownText = this.add.text(width / 2, height / 2, '', {
+      fontFamily: 'Impact, Arial Black, sans-serif',
+      fontSize: '120px',
+      color: '#FFD700',
+      stroke: '#FF6600',
+      strokeThickness: 8,
+      shadow: {
+        offsetX: 4,
+        offsetY: 4,
+        color: '#000000',
+        blur: 10,
+        fill: true
+      }
+    }).setOrigin(0.5).setDepth(1001).setVisible(false);
+  }
+
+  /**
+   * Show splash screen
+   */
+  private showSplashScreen() {
+    this.splashImage.setVisible(true);
+    this.instructionText.setVisible(false);
+    this.gameStarted = false;
+    this.isCountingDown = false;
+  }
+
+  /**
+   * Hide splash and start countdown
+   */
+  private hideSplashAndStartCountdown() {
+    this.splashImage.setVisible(false);
+    this.startCountdown();
+  }
+
+  /**
+   * Start 3-2-1 countdown
+   */
+  private startCountdown() {
+    this.isCountingDown = true;
+    this.countdownText.setVisible(true);
+    
+    let count = 3;
+    this.countdownText.setText(count.toString());
+    
+    // Countdown timer
+    this.time.addEvent({
+      delay: 1000,
+      repeat: 2,
+      callback: () => {
+        count--;
+        if (count > 0) {
+          this.countdownText.setText(count.toString());
+        } else {
+          // Countdown finished
+          this.countdownText.setVisible(false);
+          this.isCountingDown = false;
+          this.instructionText.setVisible(true);
+          this.instructionText.setText(`Week ${this.currentWeek} - Click to launch!`);
+        }
+      }
+    });
+  }
+
+  /**
    * Update score display
    */
   private updateScore() {
@@ -722,9 +821,8 @@ export class MainScene extends Phaser.Scene {
     this.updateWeek();
     this.hideOverlay();
     
-    // Show instruction
-    this.instructionText.setVisible(true);
-    this.instructionText.setText(`Week ${this.currentWeek} - Click to start`);
+    // Show splash screen for new week (gives breathing room)
+    this.showSplashScreen();
   }
 
   /**
