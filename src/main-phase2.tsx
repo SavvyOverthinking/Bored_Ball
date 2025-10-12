@@ -13,8 +13,6 @@ console.log('🎮 Calendar Breakout - Phase 2 (STAGING)');
 console.log('✨ Features: Level Curve, Weekly Power-ups, Weekend Dodge Mode');
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
-  <React.StrictMode>
-    <App />
-  </React.StrictMode>,
+  <App />
 );
 

@@ -64,15 +64,17 @@ export class MainScenePhase2 extends Phaser.Scene {
 
   constructor() {
     super({ key: 'CalendarScenePhase2' });
+    console.log('🎯 MainScenePhase2 constructor called');
   }
 
-  init(data: { 
-    week?: number, 
-    tuning?: LevelTuning, 
-    score?: number, 
+  init(data: {
+    week?: number,
+    tuning?: LevelTuning,
+    score?: number,
     lives?: number,
-    fromWeekendBonus?: boolean 
+    fromWeekendBonus?: boolean
   }) {
+    console.log('🎯 MainScenePhase2.init() called');
     console.log('🎮 Phase 2 Scene Init - Data received:', data);
     
     // Check for URL param override (?week=25)
