@@ -1,3 +1,5 @@
+[![Play Online](https://img.shields.io/badge/play-live-green)](https://savvyoverthinking.github.io/Bored_Ball/)
+
 # 📅 Calendar Breakout
 
 <p align="center">
