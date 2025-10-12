@@ -16,12 +16,9 @@ jobs:
           node-version: '20'
       - run: npm ci
       - name: Build Phase 2
-        env:
-          VITE_PHASE2: '1'
         run: |
-          echo "Environment check:"
-          echo "VITE_PHASE2=$VITE_PHASE2"
-          npm run build
+          echo "Building Phase 2 with build:production script..."
+          npm run build:production
       - name: Verify build output
         run: |
           echo "Files in dist before rename:"
