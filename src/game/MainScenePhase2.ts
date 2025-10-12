@@ -197,10 +197,18 @@ export class MainScenePhase2 extends Phaser.Scene {
     if (this.gameStarted && !this.gameOver && !this.isPaused) {
       this.ballPool.getGroup().getChildren().forEach((ball: any) => {
         const ballBody = ball.body as Phaser.Physics.Arcade.Body;
-        // Only check if ball is moving downward
+        
+        // Paddle collision (only when ball moving downward)
         if (ballBody && ballBody.velocity.y > 0) {
           if (this.physics.overlap(ball, this.paddle)) {
             this.ballHitPaddle(ball, this.paddle);
+          }
+        }
+        
+        // Powerup collision
+        if (this.powerUpIcon && ballBody) {
+          if (this.physics.overlap(ball, this.powerUpIcon)) {
+            this.collectPowerUp(ball, this.powerUpIcon);
           }
         }
       });
@@ -618,8 +626,8 @@ export class MainScenePhase2 extends Phaser.Scene {
   private setupCollisions() {
     this.physics.world.setBoundsCollision(true, true, true, false);
     
-    // Manual paddle collision handled in update() for full control over English physics
-    // (No automatic collision setup for paddle)
+    // Manual paddle & powerup collision handled in update() for full control
+    // (No automatic collision setup for paddle or powerups)
     
     this.physics.add.collider(
       this.ballPool.getGroup(),
@@ -628,17 +636,6 @@ export class MainScenePhase2 extends Phaser.Scene {
       undefined,
       this
     );
-    
-    // Phase 2: Power-up collision (if exists)
-    if (this.powerUpIcon) {
-      this.physics.add.overlap(
-        this.ballPool.getGroup(),
-        this.powerUpIcon,
-        this.collectPowerUp,
-        undefined,
-        this
-      );
-    }
   }
 
   private ballHitPaddle(ball: any, paddle: any) {
@@ -1091,19 +1088,36 @@ export class MainScenePhase2 extends Phaser.Scene {
     const block = Phaser.Math.RND.pick(validBlocks) as any;
     const powerUp = getRandomPowerUp();
     
-    // Create simple icon (will improve with graphics later)
-    const icon = this.add.text(block.x, block.y - 30, powerUp.label.split(' ')[0], {
-      fontSize: '24px',
-      color: '#FFD700',
-      backgroundColor: '#000000',
-      padding: { x: 6, y: 6 }
+    // Extract emoji from label (e.g., "☕ Coffee Break" -> "☕")
+    const emoji = powerUp.label.split(' ')[0];
+    
+    // Create emoji powerup with larger size and glow effect
+    const icon = this.add.text(block.x, block.y - 30, emoji, {
+      fontSize: '48px',  // Large emoji
+      color: '#FFFFFF'
     }).setOrigin(0.5);
+    
+    // Add glow effect with shadow
+    icon.setStroke('#000000', 4);
+    icon.setShadow(0, 0, '#FFD700', 8, true, true);
     
     icon.setData('powerUpType', powerUp.id);
     
+    // Create container with physics
     this.powerUpIcon = this.add.container(block.x, block.y - 30, [icon]);
     this.physics.add.existing(this.powerUpIcon);
-    (this.powerUpIcon.body as Phaser.Physics.Arcade.Body).setCircle(20);
+    const body = this.powerUpIcon.body as Phaser.Physics.Arcade.Body;
+    body.setCircle(POWERUP_CONFIG.PICKUP_RADIUS);
+    
+    // Add floating animation
+    this.tweens.add({
+      targets: this.powerUpIcon,
+      y: block.y - 30 - POWERUP_CONFIG.FLOAT_AMPLITUDE,
+      duration: POWERUP_CONFIG.FLOAT_SPEED / 2,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.easeInOut'
+    });
     
     this.powerUpSpawned = true;
     console.log(`⚡ Power-up spawned: ${powerUp.label}`);
