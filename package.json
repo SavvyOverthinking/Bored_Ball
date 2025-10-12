@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "build:production": "cross-env VITE_PHASE2=1 vite build",
     "dev:phase2": "cross-env VITE_PHASE2=1 vite --port 3003",
     "build:phase2": "cross-env VITE_PHASE2=1 vite build --outDir dist-phase2",
     "preview": "vite preview --port 4173",
