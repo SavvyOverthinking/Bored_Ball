@@ -46,10 +46,16 @@ export class BallPool {
       body.setVelocity(vx, vy);
       body.onWorldBounds = true;
       
-      // Prevent wobble: enable physics body sync and set mass
+      // Prevent wobble: strict physics settings
       body.setMaxVelocity(PHYSICS.MAX_SPEED, PHYSICS.MAX_SPEED);
       body.setDamping(false);
       body.useDamping = false;
+      body.allowGravity = false;
+      body.setDrag(0);
+      body.setFriction(0);
+      
+      // Force position sync every frame
+      body.updateCenter();
     }
 
     this.group.add(ball);

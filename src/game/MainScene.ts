@@ -21,6 +21,8 @@ export class MainScene extends Phaser.Scene {
   
   // Ball stuck detection
   private ballPositionHistory: Map<any, Array<{x: number, y: number, time: number}>> = new Map();
+  private ballCorrectionCooldown: Map<any, number> = new Map();
+  private stuckCheckCounter: number = 0;
   
   // Game state
   private score: number = 0;
@@ -108,14 +110,22 @@ export class MainScene extends Phaser.Scene {
       this.winGame();
     }
 
-    // Prevent balls from getting stuck in horizontal or repetitive bounces
-    if (this.gameStarted) {
+    // Prevent balls from getting stuck (check every 10 frames to reduce wobble)
+    this.stuckCheckCounter++;
+    if (this.gameStarted && this.stuckCheckCounter >= 10) {
+      this.stuckCheckCounter = 0;
       const currentTime = this.time.now;
       
       this.ballPool.getGroup().children.iterate((ball: any) => {
         if (ball.active && ball.body) {
           const body = ball.body as Phaser.Physics.Arcade.Body;
           const absVelocityY = Math.abs(body.velocity.y);
+          
+          // Check cooldown - don't correct too frequently
+          const lastCorrection = this.ballCorrectionCooldown.get(ball) || 0;
+          if (currentTime - lastCorrection < 1000) { // 1 second cooldown
+            return true;
+          }
           
           // Track ball position history
           if (!this.ballPositionHistory.has(ball)) {
@@ -124,36 +134,36 @@ export class MainScene extends Phaser.Scene {
           const history = this.ballPositionHistory.get(ball)!;
           history.push({ x: ball.x, y: ball.y, time: currentTime });
           
-          // Keep only last 60 frames (1 second at 60fps)
-          if (history.length > 60) {
+          // Keep only last 90 frames (1.5 seconds at 60fps)
+          if (history.length > 90) {
             history.shift();
           }
           
           let needsCorrection = false;
           
-          // Check 1: Ball moving too horizontally
-          if (absVelocityY < 120) {
+          // Check 1: Ball moving too horizontally (very low Y velocity)
+          if (absVelocityY < 60) {
             needsCorrection = true;
           }
           
           // Check 2: Ball stuck in small area (repetitive pattern)
-          if (history.length >= 30) {
-            const recent = history.slice(-30);
+          if (history.length >= 60) {
+            const recent = history.slice(-60);
             const avgY = recent.reduce((sum, p) => sum + p.y, 0) / recent.length;
             const yVariance = recent.reduce((sum, p) => sum + Math.pow(p.y - avgY, 2), 0) / recent.length;
             
-            // If ball has been in roughly the same Y position for 30 frames (stuck pattern)
-            if (yVariance < 400) { // Standard deviation less than ~20 pixels
+            // If ball has been in roughly the same Y position for 60 frames (stuck pattern)
+            if (yVariance < 300) {
               needsCorrection = true;
             }
           }
           
-          // Apply correction
+          // Apply correction smoothly
           if (needsCorrection) {
             const speed = Phaser.Math.Clamp(body.velocity.length(), PHYSICS.MIN_SPEED, PHYSICS.MAX_SPEED);
             
-            // Force a more vertical angle (45-75 degrees from horizontal)
-            const randomAngle = Phaser.Math.Between(45, 75) * Math.PI / 180;
+            // Force a more vertical angle (40-70 degrees from horizontal)
+            const randomAngle = Phaser.Math.Between(40, 70) * Math.PI / 180;
             const direction = body.velocity.y > 0 ? 1 : -1;
             
             body.setVelocity(
@@ -161,8 +171,9 @@ export class MainScene extends Phaser.Scene {
               Math.sin(randomAngle) * speed * direction
             );
             
-            // Clear history to give it a fresh start
+            // Clear history and set cooldown
             this.ballPositionHistory.set(ball, []);
+            this.ballCorrectionCooldown.set(ball, currentTime);
           }
         }
         return true;
@@ -675,6 +686,7 @@ export class MainScene extends Phaser.Scene {
     // Clear all balls
     this.ballPool.getGroup().clear(true, true);
     this.ballPositionHistory.clear();
+    this.ballCorrectionCooldown.clear();
     
     // Clear all blocks
     this.blocks.clear(true, true);
@@ -732,7 +744,7 @@ export class MainScene extends Phaser.Scene {
   private pauseGame() {
     this.isPaused = true;
     this.physics.pause();
-    this.showOverlay('PAUSED', 'ESC again to quit\nClick to resume');
+    this.showOverlay('⏸️  PAUSED', 'Press ESC again to QUIT and restart\nClick anywhere to resume playing');
     
     // Click to resume
     this.input.once('pointerdown', () => {
@@ -754,7 +766,14 @@ export class MainScene extends Phaser.Scene {
    * Quit game (return to start)
    */
   private quitGame() {
-    this.scene.restart();
+    // Show quick "QUITTING" overlay before restart
+    this.hideOverlay();
+    this.showOverlay('🚪 QUITTING...', 'Restarting game');
+    
+    // Restart after brief delay
+    this.time.delayedCall(500, () => {
+      this.scene.restart();
+    });
   }
 
   /**
