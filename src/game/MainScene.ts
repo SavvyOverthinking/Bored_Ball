@@ -99,6 +99,34 @@ export class MainScene extends Phaser.Scene {
       this.winGame();
     }
 
+    // Prevent balls from getting stuck in horizontal bounces
+    if (this.gameStarted) {
+      this.ballPool.getGroup().children.iterate((ball: any) => {
+        if (ball.active && ball.body) {
+          const body = ball.body as Phaser.Physics.Arcade.Body;
+          const absVelocityY = Math.abs(body.velocity.y);
+          
+          // If ball is moving too horizontally (stuck in horizontal bounce)
+          if (absVelocityY < 80) {
+            const speed = body.velocity.length();
+            const currentAngle = Math.atan2(body.velocity.y, body.velocity.x);
+            
+            // Add downward velocity component
+            const minAngle = body.velocity.y > 0 ? Math.PI / 6 : -Math.PI / 6; // 30 degrees
+            const newAngle = body.velocity.y > 0 ? 
+              Math.max(minAngle, currentAngle) : 
+              Math.min(-minAngle, currentAngle);
+            
+            body.setVelocity(
+              Math.cos(newAngle) * speed,
+              Math.sin(newAngle) * speed
+            );
+          }
+        }
+        return true;
+      });
+    }
+
     // Clean up balls that fell off screen
     this.ballPool.killIfOffscreen();
 
