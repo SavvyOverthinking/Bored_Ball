@@ -4,22 +4,22 @@
  */
 
 import Phaser from 'phaser';
-import { generateCalendarBlocks, getCalendarGridConfig, getBoardDimensions, type BlockData } from './calendarGenerator';
+import { getCalendarGridConfig, getBoardDimensions } from './calendarGenerator';
 import { applyMeetingEffect, type MeetingType } from './physicsModifiers';
 import { BallPool } from './BallPool';
 import { clampVelocity, calculatePaddleBounceAngle, PHYSICS } from './constants';
 import { sound } from './soundEffects';
-import calendarData from '../data/mockCalendar.json';
 import type { LevelTuning } from './levelCurve';
 import { startWeek } from './phase2Router';
 import { POWERUPS, POWERUP_CONFIG, getRandomPowerUp, type PowerUpKind } from './powerups';
+import { generateWeek, computeColumns, type Meeting } from './calendarGeneratorPhase2';
 
 export class MainScenePhase2 extends Phaser.Scene {
   // Game objects
   private paddle!: Phaser.Physics.Arcade.Sprite;
   private ballPool!: BallPool;
   private blocks!: Phaser.Physics.Arcade.StaticGroup;
-  private blockDataMap: Map<string, BlockData> = new Map();
+  private blockDataMap: Map<string, Meeting> = new Map();
   private blockHitPoints: Map<string, number> = new Map();
   
   // Ball stuck detection
@@ -74,7 +74,14 @@ export class MainScenePhase2 extends Phaser.Scene {
   }) {
     console.log('🎮 Phase 2 Scene Init:', data);
     
-    this.currentWeek = data.week || 1;
+    // Check for URL param override (?week=25)
+    const urlParams = new URLSearchParams(window.location.search);
+    const urlWeek = Number(urlParams.get('week'));
+    
+    this.currentWeek = Number.isFinite(urlWeek) && urlWeek > 0 && urlWeek <= 52 
+      ? urlWeek 
+      : (data.week || 1);
+      
     this.score = data.score || 0;
     this.lives = data.lives || 3;
     this.tuning = data.tuning || {
@@ -93,6 +100,9 @@ export class MainScenePhase2 extends Phaser.Scene {
     this.shieldActive = false;
     
     console.log(`📈 Week ${this.currentWeek} Tuning:`, this.tuning);
+    if (urlWeek && urlWeek !== data.week) {
+      console.log(`🔧 DEV: Week overridden via URL param: ${urlWeek}`);
+    }
   }
 
   preload() {
@@ -312,83 +322,90 @@ export class MainScenePhase2 extends Phaser.Scene {
   private createBlocks() {
     this.blocks = this.physics.add.staticGroup();
     
-    // Phase 2: Apply tuning to meeting generation
-    let meetings = [...calendarData.meetings] as any[];
+    // Phase 2: Generate deterministic calendar for this week
+    const meetings = generateWeek(this.currentWeek);
+    const renderItems = computeColumns(meetings);
     
-    // Filter by minimum duration
-    meetings = meetings.filter(m => m.duration >= this.tuning.minBlockMins);
+    const config = getCalendarGridConfig();
+    const START_HOUR = 9;
+    const END_HOUR = 17;
+    const DAY_MINS = (END_HOUR - START_HOUR) * 60;
     
-    // Apply density (sample subset)
-    meetings = Phaser.Math.RND.shuffle(meetings)
-      .slice(0, Math.floor(meetings.length * this.tuning.density));
-    
-    // Adjust meeting types based on tuning rates
-    meetings.forEach(meeting => {
-      const roll = Math.random();
-      if (roll < this.tuning.bossRate) {
-        meeting.type = 'boss';
-      } else if (roll < this.tuning.bossRate + this.tuning.teamRate) {
-        meeting.type = 'team';
-      } else if (roll < this.tuning.bossRate + this.tuning.teamRate + this.tuning.lunchRate) {
-        meeting.type = 'lunch';
+    // Helper to get color for meeting type
+    const getColorForType = (type: MeetingType): number => {
+      switch (type) {
+        case 'boss': return 0xe53935;
+        case 'team': return 0x4caf50;
+        case '1:1': return 0x5c6bc0;
+        case 'lunch': return 0xfbc02d;
+        case 'personal': return 0x8e24aa;
+        default: return 0x5c6bc0;
       }
-      // Keep original type otherwise
-    });
+    };
     
-    const blockDataList = generateCalendarBlocks(meetings);
-
-    blockDataList.forEach((blockData) => {
-      const color = parseInt(blockData.color.replace('#', '0x'));
-      const blockRect = this.add.rectangle(
-        blockData.x,
-        blockData.y,
-        blockData.width - 4,
-        blockData.height,
-        color,
-        0.85
-      );
+    renderItems.forEach((item, index) => {
+      const blockId = `meeting-${this.currentWeek}-${index}`;
       
+      // Calculate positions using double-booking columns
+      const dayX = config.padding + item.day * (config.columnWidth + config.columnGap);
+      const yPerMin = config.gridHeight / DAY_MINS;
+      
+      const bandTop = config.headerHeight + item.startMin * yPerMin;
+      const bandBot = config.headerHeight + item.endMin * yPerMin;
+      
+      // Apply column layout for double-booking
+      const fullW = config.columnWidth - 6; // margin
+      const w = (fullW / item.cols) - 4;    // 4px gutter between columns
+      const x = dayX + (fullW / item.cols) * item.col + w / 2 + 4;
+      const y = (bandTop + bandBot) / 2;
+      const h = Math.max(20, bandBot - bandTop - 4);
+      
+      const color = getColorForType(item.type);
+      
+      // Create main block rectangle
+      const blockRect = this.add.rectangle(x, y, w, h, color, 0.85);
       blockRect.setStrokeStyle(1, 0xffffff, 0.2);
       this.blocks.add(blockRect);
       
       const block = blockRect as any;
-      block.setData('meetingType', blockData.type);
-      block.setData('blockId', blockData.id);
+      block.setData('meetingType', item.type);
+      block.setData('blockId', blockId);
       
-      const accentBar = this.add.rectangle(
-        blockData.x - blockData.width / 2 + 4,
-        blockData.y,
-        4,
-        blockData.height,
-        color,
-        1.0
-      );
-      accentBar.setData('blockId', blockData.id);
+      // Create left accent bar (Outlook signature)
+      const accentBar = this.add.rectangle(x - w / 2 + 2, y, 3, h, color, 1.0);
+      accentBar.setData('blockId', blockId);
       accentBar.setDepth(2);
       
-      const hitPoints = this.getHitPointsForMeeting(blockData.type);
-      this.blockHitPoints.set(blockData.id, hitPoints);
-
-      const fontSize = blockData.height > 30 ? '10px' : '8px';
-      const text = this.add.text(
-        blockData.x - blockData.width / 2 + 10,
-        blockData.y - blockData.height / 2 + 4,
-        blockData.title, {
-        fontFamily: 'Segoe UI, Inter, sans-serif',
-        fontSize,
-        color: '#ffffff',
-        fontStyle: '600',
-        align: 'left',
-        wordWrap: { width: blockData.width - 16 },
-      }).setOrigin(0, 0);
+      // Initialize hit points
+      const hitPoints = this.getHitPointsForMeeting(item.type);
+      this.blockHitPoints.set(blockId, hitPoints);
       
-      text.setData('blockId', blockData.id);
-      text.setDepth(5);
-
-      this.blockDataMap.set(blockData.id, blockData);
+      // Add title text (if block is tall enough)
+      if (h > 18) {
+        const fontSize = h > 30 ? '10px' : '8px';
+        const text = this.add.text(
+          x - w / 2 + 6,
+          y - h / 2 + 3,
+          item.title || 'Meeting',
+          {
+            fontFamily: 'Segoe UI, Inter, sans-serif',
+            fontSize,
+            color: '#ffffff',
+            fontStyle: '600',
+            align: 'left',
+            wordWrap: { width: w - 10 },
+          }
+        ).setOrigin(0, 0);
+        
+        text.setData('blockId', blockId);
+        text.setDepth(5);
+      }
+      
+      // Store meeting data
+      this.blockDataMap.set(blockId, item);
     });
     
-    console.log(`✨ Phase 2 Generated ${blockDataList.length} meetings with tuning applied`);
+    console.log(`✨ Phase 2: Generated ${meetings.length} meetings for week ${this.currentWeek} (${renderItems.length} rendered with double-booking layout)`);
   }
 
   private getHitPointsForMeeting(type: MeetingType): number {
@@ -440,35 +457,51 @@ export class MainScenePhase2 extends Phaser.Scene {
   private setupInput() {
     const { width } = getBoardDimensions();
     
-    this.input.on('pointerdown', () => {
-      if (this.gameStarted && !this.gameOver && !this.isPaused && !this.isCountingDown && !this.splashImage.visible) {
-        const canvas = this.game.canvas;
-        if (canvas && !this.pointerLocked) {
-          canvas.requestPointerLock();
-        }
+    // Hide cursor and show instruction
+    this.input.setDefaultCursor('default');
+    
+    // Pointer lock on FIRST click (no second click needed)
+    this.input.once('pointerdown', () => {
+      const canvas = this.game.canvas;
+      if (canvas && !this.pointerLocked) {
+        canvas.requestPointerLock();
+        this.input.setDefaultCursor('none');
       }
     });
     
+    // Listen for pointer lock changes
     document.addEventListener('pointerlockchange', () => {
       this.pointerLocked = document.pointerLockElement === this.game.canvas;
+      if (!this.pointerLocked) {
+        this.input.setDefaultCursor('default');
+      }
     });
     
+    // Move paddle with pointer movement
     this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
       if (this.gameOver || this.isPaused || this.isCountingDown || this.splashImage.visible) return;
       
       if (this.pointerLocked) {
+        // Use relative movement when locked (better control)
         const movementX = pointer.movementX || 0;
         this.paddle.x = Phaser.Math.Clamp(
           this.paddle.x + movementX * 1.5,
-          50, 
-          width - 50
+          60, 
+          width - 60
         );
       } else {
-        this.paddle.x = Phaser.Math.Clamp(pointer.x, 50, width - 50);
+        // Fallback to absolute positioning for touch/non-locked
+        this.paddle.x = Phaser.Math.Clamp(pointer.x, 60, width - 60);
       }
     });
 
+    // ESC key handler
     this.input.keyboard?.on('keydown-ESC', () => {
+      // Release pointer lock
+      if (this.pointerLocked) {
+        document.exitPointerLock();
+      }
+      
       if (this.gameOver) return;
 
       if (!this.isPaused && !this.escapePressed) {
@@ -477,6 +510,77 @@ export class MainScenePhase2 extends Phaser.Scene {
       } else if (this.isPaused && this.escapePressed) {
         this.quitGame();
       }
+    });
+    
+    // DEV: Cheat codes for QA testing
+    this.input.keyboard?.on('keydown', (event: KeyboardEvent) => {
+      // Ctrl+Shift+ArrowUp: Next week
+      if (event.ctrlKey && event.shiftKey && event.code === 'ArrowUp') {
+        event.preventDefault();
+        const nextWeek = Math.min(52, this.currentWeek + 1);
+        this.showDevToast(`DEV: Jumping to Week ${nextWeek}`);
+        this.scene.restart({ 
+          week: nextWeek, 
+          score: this.score, 
+          lives: this.lives 
+        });
+      }
+      
+      // Ctrl+Shift+ArrowDown: Previous week
+      if (event.ctrlKey && event.shiftKey && event.code === 'ArrowDown') {
+        event.preventDefault();
+        const prevWeek = Math.max(1, this.currentWeek - 1);
+        this.showDevToast(`DEV: Jumping to Week ${prevWeek}`);
+        this.scene.restart({ 
+          week: prevWeek, 
+          score: this.score, 
+          lives: this.lives 
+        });
+      }
+      
+      // Ctrl+Shift+L: Add extra life (dev)
+      if (event.ctrlKey && event.shiftKey && event.code === 'KeyL') {
+        event.preventDefault();
+        this.lives++;
+        this.updateLives();
+        this.showDevToast(`DEV: +1 Life (${this.lives} total)`);
+      }
+      
+      // Ctrl+Shift+B: Spawn ball (dev)
+      if (event.ctrlKey && event.shiftKey && event.code === 'KeyB') {
+        event.preventDefault();
+        this.createExtraBall(this.paddle.x, this.paddle.y - 30, 100, -200);
+        this.showDevToast(`DEV: Extra ball spawned`);
+      }
+    });
+    
+    // Release pointer lock on blur
+    this.game.events.on(Phaser.Core.Events.BLUR, () => {
+      if (this.pointerLocked) {
+        document.exitPointerLock();
+      }
+    });
+  }
+  
+  /**
+   * Show dev toast notification (for cheat codes)
+   */
+  private showDevToast(message: string) {
+    const { width, height } = getBoardDimensions();
+    const toast = this.add.text(width / 2, height - 80, message, {
+      fontSize: '14px',
+      color: '#ffffff',
+      backgroundColor: '#333333',
+      padding: { x: 12, y: 8 }
+    }).setOrigin(0.5).setDepth(3000);
+    
+    this.tweens.add({
+      targets: toast,
+      alpha: 0,
+      y: height - 120,
+      duration: 2000,
+      ease: 'Power2',
+      onComplete: () => toast.destroy()
     });
   }
 
