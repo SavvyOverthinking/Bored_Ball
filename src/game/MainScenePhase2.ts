@@ -193,6 +193,19 @@ export class MainScenePhase2 extends Phaser.Scene {
 
     if (this.gameOver || this.isPaused || this.isCountingDown) return;
 
+    // Manual paddle collision check for English physics
+    if (this.gameStarted && !this.gameOver && !this.isPaused) {
+      this.ballPool.getGroup().getChildren().forEach((ball: any) => {
+        const ballBody = ball.body as Phaser.Physics.Arcade.Body;
+        // Only check if ball is moving downward
+        if (ballBody && ballBody.velocity.y > 0) {
+          if (this.physics.overlap(ball, this.paddle)) {
+            this.ballHitPaddle(ball, this.paddle);
+          }
+        }
+      });
+    }
+
     if (this.blocks.getLength() === 0 && this.gameStarted && !this.gameOver) {
       this.winGame();
     }
@@ -605,14 +618,8 @@ export class MainScenePhase2 extends Phaser.Scene {
   private setupCollisions() {
     this.physics.world.setBoundsCollision(true, true, true, false);
     
-    // Use collider with processCallback to control physics while maintaining collision
-    this.physics.add.collider(
-      this.ballPool.getGroup(),
-      this.paddle,
-      this.ballHitPaddle,
-      this.ballPaddleProcess,
-      this
-    );
+    // Manual paddle collision handled in update() for full control over English physics
+    // (No automatic collision setup for paddle)
     
     this.physics.add.collider(
       this.ballPool.getGroup(),
@@ -632,12 +639,6 @@ export class MainScenePhase2 extends Phaser.Scene {
         this
       );
     }
-  }
-
-  private ballPaddleProcess(ball: any, _paddle: any): boolean {
-    const ballBody = ball.body as Phaser.Physics.Arcade.Body;
-    // Only process collision if ball is moving downward
-    return ballBody.velocity.y > 0;
   }
 
   private ballHitPaddle(ball: any, paddle: any) {
@@ -665,10 +666,11 @@ export class MainScenePhase2 extends Phaser.Scene {
     const newVelocityX = Math.sin(angle) * speed;
     const newVelocityY = -Math.abs(Math.cos(angle)) * speed; // Always bounce upward
     
-    ballBody.setVelocity(newVelocityX, newVelocityY);
-    
-    // Move ball slightly above paddle to prevent tunneling
+    // Manually separate ball from paddle (move it above)
     ball.y = paddle.y - (paddle.height / 2) - (ball.height / 2) - 2;
+    
+    // Set velocity AFTER position update
+    ballBody.setVelocity(newVelocityX, newVelocityY);
     
     // Verify the angle was applied
     console.log(`   → Final velocity: (${newVelocityX.toFixed(1)}, ${newVelocityY.toFixed(1)})`);
