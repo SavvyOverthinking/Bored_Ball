@@ -8,6 +8,7 @@ import { generateCalendarBlocks, getCalendarGridConfig, getBoardDimensions, type
 import { applyMeetingEffect, type MeetingType } from './physicsModifiers';
 import { BallPool } from './BallPool';
 import { clampVelocity, calculatePaddleBounceAngle, PHYSICS } from './constants';
+import { sound } from './soundEffects';
 import calendarData from '../data/mockCalendar.json';
 
 export class MainScene extends Phaser.Scene {
@@ -28,6 +29,8 @@ export class MainScene extends Phaser.Scene {
   private totalWeeks: number = 52;
   private gameStarted: boolean = false;
   private gameOver: boolean = false;
+  private isPaused: boolean = false;
+  private escapePressed: boolean = false;
   
   // UI elements
   private scoreText!: Phaser.GameObjects.Text;
@@ -51,6 +54,9 @@ export class MainScene extends Phaser.Scene {
 
     // Set background (lighter, more Outlook-like)
     this.add.rectangle(width / 2, height / 2, width, height, 0xfafbfc);
+
+    // Load saved progress
+    this.loadProgress();
 
     // Initialize ball pool
     this.ballPool = new BallPool(this);
@@ -78,7 +84,7 @@ export class MainScene extends Phaser.Scene {
   }
 
   update() {
-    if (this.gameOver) return;
+    if (this.gameOver || this.isPaused) return;
 
     // Keep paddle velocity at zero (prevent drift)
     const paddleBody = this.paddle.body as Phaser.Physics.Arcade.Body;
@@ -384,8 +390,22 @@ export class MainScene extends Phaser.Scene {
    */
   private setupInput() {
     this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
-      if (!this.gameOver) {
+      if (!this.gameOver && !this.isPaused) {
         this.paddle.x = Phaser.Math.Clamp(pointer.x, 50, getBoardDimensions().width - 50);
+      }
+    });
+
+    // ESC key handler: First press pauses, second press quits
+    this.input.keyboard?.on('keydown-ESC', () => {
+      if (this.gameOver) return;
+
+      if (!this.isPaused && !this.escapePressed) {
+        // First ESC: Pause game
+        this.pauseGame();
+        this.escapePressed = true;
+      } else if (this.isPaused && this.escapePressed) {
+        // Second ESC: Quit to start
+        this.quitGame();
       }
     });
   }
@@ -421,6 +441,9 @@ export class MainScene extends Phaser.Scene {
   private ballHitPaddle(ball: any, paddle: any) {
     const ballBody = ball.body as Phaser.Physics.Arcade.Body;
     
+    // Play sound effect
+    sound.paddleHit();
+    
     // Calculate deterministic bounce angle based on paddle hit position
     const angle = calculatePaddleBounceAngle(ball.x, paddle.x, PHYSICS.PADDLE_WIDTH);
     
@@ -453,6 +476,8 @@ export class MainScene extends Phaser.Scene {
     
     if (newHP <= 0) {
       // Block destroyed!
+      sound.blockDestroyed();
+      
       block.destroy();
       
       // Find and remove associated text and accent bar
@@ -469,6 +494,8 @@ export class MainScene extends Phaser.Scene {
       this.updateScore();
     } else {
       // Block damaged - update hit points and show visual feedback
+      sound.blockHit();
+      
       this.blockHitPoints.set(blockId, newHP);
       
       // Flash the block to show damage
@@ -516,6 +543,8 @@ export class MainScene extends Phaser.Scene {
   private loseLife() {
     this.lives--;
     this.updateLives();
+    
+    sound.lifeLost();
 
     if (this.lives <= 0) {
       this.loseGame();
@@ -613,6 +642,7 @@ export class MainScene extends Phaser.Scene {
   private winGame() {
     if (this.currentWeek >= this.totalWeeks) {
       // Won the entire year!
+      sound.yearCleared();
       this.gameOver = true;
       this.showOverlay('Year Cleared! 🎉🎊', `You cleared all 52 weeks!\nFinal Score: ${this.score}\n\nClick to restart`);
       
@@ -621,6 +651,7 @@ export class MainScene extends Phaser.Scene {
       });
     } else {
       // Move to next week
+      sound.weekCleared();
       this.gameOver = true;
       this.showOverlay(`Week ${this.currentWeek} Cleared! 🎉`, `Great job! Moving to Week ${this.currentWeek + 1}...\nScore: ${this.score}\n\nClick to continue`);
       
@@ -637,6 +668,9 @@ export class MainScene extends Phaser.Scene {
     this.currentWeek++;
     this.gameStarted = false;
     this.gameOver = false;
+    
+    // Save progress
+    this.saveProgress();
     
     // Clear all balls
     this.ballPool.getGroup().clear(true, true);
@@ -690,6 +724,70 @@ export class MainScene extends Phaser.Scene {
     this.overlayBg.setVisible(true);
     this.overlayText.setText(title).setVisible(true);
     this.overlaySubtext.setText(message).setVisible(true);
+  }
+
+  /**
+   * Pause game
+   */
+  private pauseGame() {
+    this.isPaused = true;
+    this.physics.pause();
+    this.showOverlay('PAUSED', 'ESC again to quit\nClick to resume');
+    
+    // Click to resume
+    this.input.once('pointerdown', () => {
+      this.resumeGame();
+    });
+  }
+
+  /**
+   * Resume game
+   */
+  private resumeGame() {
+    this.isPaused = false;
+    this.escapePressed = false;
+    this.physics.resume();
+    this.hideOverlay();
+  }
+
+  /**
+   * Quit game (return to start)
+   */
+  private quitGame() {
+    this.scene.restart();
+  }
+
+  /**
+   * Load progress from localStorage
+   */
+  private loadProgress() {
+    try {
+      const saved = localStorage.getItem('calendarBreakout_progress');
+      if (saved) {
+        const progress = JSON.parse(saved);
+        this.currentWeek = progress.highestWeek || 1;
+        this.score = progress.score || 0;
+        console.log(`Loaded progress: Week ${this.currentWeek}, Score ${this.score}`);
+      }
+    } catch (e) {
+      console.warn('Failed to load progress:', e);
+    }
+  }
+
+  /**
+   * Save progress to localStorage
+   */
+  private saveProgress() {
+    try {
+      const progress = {
+        highestWeek: this.currentWeek,
+        score: this.score,
+        timestamp: Date.now()
+      };
+      localStorage.setItem('calendarBreakout_progress', JSON.stringify(progress));
+    } catch (e) {
+      console.warn('Failed to save progress:', e);
+    }
   }
 }
 
