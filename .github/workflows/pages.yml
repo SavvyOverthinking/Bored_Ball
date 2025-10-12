@@ -15,7 +15,10 @@ jobs:
         with:
           node-version: '20'
       - run: npm ci
-      - run: npm run build:production
+      - name: Build Phase 2
+        env:
+          VITE_PHASE2: '1'
+        run: npm run build
       - name: Verify build output
         run: |
           echo "Files in dist before rename:"
