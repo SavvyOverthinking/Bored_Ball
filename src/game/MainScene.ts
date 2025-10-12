@@ -54,10 +54,11 @@ export class MainScene extends Phaser.Scene {
 
   preload() {
     // Load splash screen image (optional - will use fallback if missing)
-    this.load.on('loaderror', () => {
-      console.log('Splash image not found, will use fallback');
+    this.load.on('loaderror', (file: any) => {
+      console.log('Splash image not found, will use fallback', file.src);
     });
-    this.load.image('splash', '/splash.jpg');
+    // Use relative path that works with Vite's base path
+    this.load.image('splash', import.meta.env.BASE_URL + 'splash.jpg');
   }
 
   create() {
