@@ -493,12 +493,12 @@ export class MainScene extends Phaser.Scene {
     // Set up world bounds (open at bottom)
     this.physics.world.setBoundsCollision(true, true, true, false);
     
-    // Use overlap instead of collider for paddle to fully control "English" physics
-    this.physics.add.overlap(
+    // Use collider with processCallback to control physics while maintaining collision
+    this.physics.add.collider(
       this.ballPool.getGroup(),
       this.paddle,
       this.ballHitPaddle,
-      undefined,
+      this.ballPaddleProcess,
       this
     );
     
@@ -512,15 +512,19 @@ export class MainScene extends Phaser.Scene {
   }
 
   /**
+   * Process callback for paddle collision - determines if collision should be processed
+   */
+  private ballPaddleProcess(ball: any, _paddle: any): boolean {
+    const ballBody = ball.body as Phaser.Physics.Arcade.Body;
+    // Only process collision if ball is moving downward
+    return ballBody.velocity.y > 0;
+  }
+
+  /**
    * Ball hits paddle handler
    */
   private ballHitPaddle(ball: any, paddle: any) {
     const ballBody = ball.body as Phaser.Physics.Arcade.Body;
-    
-    // Only process if ball is moving downward (prevents double-hits)
-    if (ballBody.velocity.y <= 0) {
-      return;
-    }
     
     // Play sound effect
     sound.paddleHit();
