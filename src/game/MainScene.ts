@@ -7,7 +7,7 @@ import Phaser from 'phaser';
 import { generateCalendarBlocks, getCalendarGridConfig, getBoardDimensions, type BlockData } from './calendarGenerator';
 import { applyMeetingEffect, type MeetingType } from './physicsModifiers';
 import { BallPool } from './BallPool';
-import { clampVelocity, calculatePaddleBounceAngle, PHYSICS } from './constants';
+import { calculatePaddleBounceAngle, PHYSICS } from './constants';
 import { sound } from './soundEffects';
 import calendarData from '../data/mockCalendar.json';
 
@@ -493,8 +493,8 @@ export class MainScene extends Phaser.Scene {
     // Set up world bounds (open at bottom)
     this.physics.world.setBoundsCollision(true, true, true, false);
     
-    // Set up collisions between ball pool and paddle/blocks
-    this.physics.add.collider(
+    // Use overlap instead of collider for paddle to fully control "English" physics
+    this.physics.add.overlap(
       this.ballPool.getGroup(),
       this.paddle,
       this.ballHitPaddle,
@@ -517,26 +517,40 @@ export class MainScene extends Phaser.Scene {
   private ballHitPaddle(ball: any, paddle: any) {
     const ballBody = ball.body as Phaser.Physics.Arcade.Body;
     
+    // Only process if ball is moving downward (prevents double-hits)
+    if (ballBody.velocity.y <= 0) {
+      return;
+    }
+    
     // Play sound effect
     sound.paddleHit();
     
-    // Calculate deterministic bounce angle based on paddle hit position
+    // Calculate "English" - angle based on where ball hits paddle
     const angle = calculatePaddleBounceAngle(ball.x, paddle.x, PHYSICS.PADDLE_WIDTH);
+    
+    // Get relative hit position for debugging
+    const relativePos = (ball.x - paddle.x) / (PHYSICS.PADDLE_WIDTH / 2);
+    const hitZone = Math.abs(relativePos) < 0.14 ? 'CENTER' : 
+                    Math.abs(relativePos) < 0.35 ? 'INNER' :
+                    Math.abs(relativePos) < 0.65 ? 'MIDDLE' : 'OUTER';
+    
+    console.log(`🎯 Paddle hit: ${hitZone} zone, angle: ${Phaser.Math.RadToDeg(angle).toFixed(1)}°, pos: ${relativePos.toFixed(2)}`);
     
     // Get current speed and apply new angle
     const currentSpeed = ballBody.velocity.length();
     const speed = Phaser.Math.Clamp(currentSpeed, PHYSICS.MIN_SPEED, PHYSICS.MAX_SPEED);
     
-    // Set velocity using angle (always upward)
-    ballBody.setVelocity(
-      Math.sin(angle) * speed,
-      -Math.abs(Math.cos(angle)) * speed
-    );
+    // Apply new velocity with English angle
+    const newVelocityX = Math.sin(angle) * speed;
+    const newVelocityY = -Math.abs(Math.cos(angle)) * speed; // Always bounce upward
     
-    // Apply clamp to ensure velocity stays within bounds
-    const velocity = new Phaser.Math.Vector2(ballBody.velocity.x, ballBody.velocity.y);
-    const clampedVelocity = clampVelocity(velocity);
-    ballBody.setVelocity(clampedVelocity.x, clampedVelocity.y);
+    ballBody.setVelocity(newVelocityX, newVelocityY);
+    
+    // Move ball slightly above paddle to prevent tunneling
+    ball.y = paddle.y - (paddle.height / 2) - (ball.height / 2) - 2;
+    
+    // Verify the angle was applied
+    console.log(`   → Final velocity: (${newVelocityX.toFixed(1)}, ${newVelocityY.toFixed(1)})`);
   }
 
   /**
