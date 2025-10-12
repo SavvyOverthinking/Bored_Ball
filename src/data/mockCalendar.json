@@ -1,0 +1,332 @@
+{
+  "week": {
+    "start": "2025-10-13",
+    "end": "2025-10-17"
+  },
+  "meetings": [
+    {
+      "id": "m1",
+      "title": "Daily Standup",
+      "type": "team",
+      "day": "Monday",
+      "startTime": "09:00",
+      "endTime": "09:15",
+      "color": "#4caf50"
+    },
+    {
+      "id": "m2",
+      "title": "1:1 with Sarah",
+      "type": "1:1",
+      "day": "Monday",
+      "startTime": "09:30",
+      "endTime": "10:00",
+      "color": "#5c6bc0"
+    },
+    {
+      "id": "m3",
+      "title": "Project Kickoff",
+      "type": "team",
+      "day": "Monday",
+      "startTime": "10:00",
+      "endTime": "11:00",
+      "color": "#4caf50"
+    },
+    {
+      "id": "m4",
+      "title": "Quick Sync",
+      "type": "team",
+      "day": "Monday",
+      "startTime": "11:00",
+      "endTime": "11:15",
+      "color": "#4caf50"
+    },
+    {
+      "id": "m5",
+      "title": "Design Review",
+      "type": "team",
+      "day": "Monday",
+      "startTime": "11:15",
+      "endTime": "12:00",
+      "color": "#4caf50"
+    },
+    {
+      "id": "m6",
+      "title": "Lunch",
+      "type": "lunch",
+      "day": "Monday",
+      "startTime": "12:00",
+      "endTime": "13:00",
+      "color": "#fbc02d"
+    },
+    {
+      "id": "m7",
+      "title": "Coffee Chat",
+      "type": "personal",
+      "day": "Monday",
+      "startTime": "14:00",
+      "endTime": "14:15",
+      "color": "#8e24aa"
+    },
+    {
+      "id": "m8",
+      "title": "Code Review",
+      "type": "team",
+      "day": "Monday",
+      "startTime": "14:30",
+      "endTime": "15:00",
+      "color": "#4caf50"
+    },
+    {
+      "id": "m9",
+      "title": "Q4 Planning",
+      "type": "boss",
+      "day": "Tuesday",
+      "startTime": "09:00",
+      "endTime": "10:00",
+      "color": "#e53935"
+    },
+    {
+      "id": "m10",
+      "title": "Team Standup",
+      "type": "team",
+      "day": "Tuesday",
+      "startTime": "09:00",
+      "endTime": "09:15",
+      "color": "#4caf50"
+    },
+    {
+      "id": "m11",
+      "title": "Sprint Planning",
+      "type": "team",
+      "day": "Tuesday",
+      "startTime": "10:00",
+      "endTime": "11:30",
+      "color": "#4caf50"
+    },
+    {
+      "id": "m12",
+      "title": "1:1 with Mike",
+      "type": "1:1",
+      "day": "Tuesday",
+      "startTime": "11:30",
+      "endTime": "12:00",
+      "color": "#5c6bc0"
+    },
+    {
+      "id": "m13",
+      "title": "Working Lunch",
+      "type": "lunch",
+      "day": "Tuesday",
+      "startTime": "12:00",
+      "endTime": "13:00",
+      "color": "#fbc02d"
+    },
+    {
+      "id": "m14",
+      "title": "Client Demo",
+      "type": "boss",
+      "day": "Tuesday",
+      "startTime": "14:00",
+      "endTime": "15:00",
+      "color": "#e53935"
+    },
+    {
+      "id": "m15",
+      "title": "Quick Check-in",
+      "type": "1:1",
+      "day": "Tuesday",
+      "startTime": "15:00",
+      "endTime": "15:15",
+      "color": "#5c6bc0"
+    },
+    {
+      "id": "m16",
+      "title": "All Hands",
+      "type": "team",
+      "day": "Wednesday",
+      "startTime": "09:00",
+      "endTime": "10:00",
+      "color": "#4caf50"
+    },
+    {
+      "id": "m17",
+      "title": "Architecture Review",
+      "type": "team",
+      "day": "Wednesday",
+      "startTime": "10:00",
+      "endTime": "11:00",
+      "color": "#4caf50"
+    },
+    {
+      "id": "m18",
+      "title": "Budget Meeting",
+      "type": "boss",
+      "day": "Wednesday",
+      "startTime": "11:00",
+      "endTime": "12:00",
+      "color": "#e53935"
+    },
+    {
+      "id": "m19",
+      "title": "Status Update",
+      "type": "team",
+      "day": "Wednesday",
+      "startTime": "11:45",
+      "endTime": "12:00",
+      "color": "#4caf50"
+    },
+    {
+      "id": "m20",
+      "title": "Lunch Break",
+      "type": "lunch",
+      "day": "Wednesday",
+      "startTime": "12:00",
+      "endTime": "13:00",
+      "color": "#fbc02d"
+    },
+    {
+      "id": "m21",
+      "title": "Focus Time",
+      "type": "personal",
+      "day": "Wednesday",
+      "startTime": "14:00",
+      "endTime": "15:00",
+      "color": "#8e24aa"
+    },
+    {
+      "id": "m22",
+      "title": "Team Standup",
+      "type": "team",
+      "day": "Thursday",
+      "startTime": "09:00",
+      "endTime": "09:15",
+      "color": "#4caf50"
+    },
+    {
+      "id": "m23",
+      "title": "1:1 with Alex",
+      "type": "1:1",
+      "day": "Thursday",
+      "startTime": "09:30",
+      "endTime": "10:00",
+      "color": "#5c6bc0"
+    },
+    {
+      "id": "m24",
+      "title": "Product Demo",
+      "type": "team",
+      "day": "Thursday",
+      "startTime": "10:00",
+      "endTime": "11:00",
+      "color": "#4caf50"
+    },
+    {
+      "id": "m25",
+      "title": "Engineering Sync",
+      "type": "team",
+      "day": "Thursday",
+      "startTime": "10:45",
+      "endTime": "11:00",
+      "color": "#4caf50"
+    },
+    {
+      "id": "m26",
+      "title": "Vendor Meeting",
+      "type": "boss",
+      "day": "Thursday",
+      "startTime": "11:00",
+      "endTime": "12:00",
+      "color": "#e53935"
+    },
+    {
+      "id": "m27",
+      "title": "Quick Bite",
+      "type": "lunch",
+      "day": "Thursday",
+      "startTime": "12:15",
+      "endTime": "12:45",
+      "color": "#fbc02d"
+    },
+    {
+      "id": "m28",
+      "title": "Design Crit",
+      "type": "team",
+      "day": "Thursday",
+      "startTime": "13:00",
+      "endTime": "13:30",
+      "color": "#4caf50"
+    },
+    {
+      "id": "m29",
+      "title": "Performance Review",
+      "type": "boss",
+      "day": "Thursday",
+      "startTime": "14:00",
+      "endTime": "15:00",
+      "color": "#e53935"
+    },
+    {
+      "id": "m30",
+      "title": "Morning Standup",
+      "type": "team",
+      "day": "Friday",
+      "startTime": "09:00",
+      "endTime": "09:15",
+      "color": "#4caf50"
+    },
+    {
+      "id": "m31",
+      "title": "Weekly Review",
+      "type": "boss",
+      "day": "Friday",
+      "startTime": "09:15",
+      "endTime": "10:00",
+      "color": "#e53935"
+    },
+    {
+      "id": "m32",
+      "title": "Code Review",
+      "type": "team",
+      "day": "Friday",
+      "startTime": "10:00",
+      "endTime": "11:00",
+      "color": "#4caf50"
+    },
+    {
+      "id": "m33",
+      "title": "Team Retro",
+      "type": "team",
+      "day": "Friday",
+      "startTime": "11:00",
+      "endTime": "12:00",
+      "color": "#4caf50"
+    },
+    {
+      "id": "m34",
+      "title": "Team Lunch",
+      "type": "lunch",
+      "day": "Friday",
+      "startTime": "12:00",
+      "endTime": "13:00",
+      "color": "#fbc02d"
+    },
+    {
+      "id": "m35",
+      "title": "1:1 with Jordan",
+      "type": "1:1",
+      "day": "Friday",
+      "startTime": "13:30",
+      "endTime": "14:00",
+      "color": "#5c6bc0"
+    },
+    {
+      "id": "m36",
+      "title": "Planning Session",
+      "type": "team",
+      "day": "Friday",
+      "startTime": "14:00",
+      "endTime": "15:00",
+      "color": "#4caf50"
+    }
+  ]
+}
