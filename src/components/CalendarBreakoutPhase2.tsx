@@ -45,15 +45,15 @@ export function CalendarBreakoutPhase2() {
     const game = new Phaser.Game(config);
     phaserGameRef.current = game;
 
-    // Start Phase 2 with proper initialization
+    // Start Phase 2 - ALWAYS at Week 1 (no saved progress)
     game.events.once('ready', () => {
       const mainScene = game.scene.getScene('CalendarScenePhase2');
       if (mainScene) {
         game.scene.stop('CalendarScenePhase2');
-        // Use phase2Router to start week 1 properly
+        // Always start at week 1 with gentle onboarding settings
         setTimeout(() => {
           game.scene.start('CalendarScenePhase2', {
-            week: 1,
+            week: 1, // ALWAYS week 1
             score: 0,
             lives: 3,
             tuning: {

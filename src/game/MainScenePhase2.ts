@@ -389,8 +389,8 @@ export class MainScenePhase2 extends Phaser.Scene {
       accentBar.setData('blockId', blockId);
       accentBar.setDepth(2);
       
-      // Initialize hit points
-      const hitPoints = this.getHitPointsForMeeting(item.type);
+      // Initialize hit points (onboarding blocks = 1 hit)
+      const hitPoints = item.title === 'Onboarding' ? 1 : this.getHitPointsForMeeting(item.type);
       this.blockHitPoints.set(blockId, hitPoints);
       
       // Add title text (if block is tall enough)
@@ -929,10 +929,15 @@ export class MainScenePhase2 extends Phaser.Scene {
     if (this.currentWeek >= this.totalWeeks) {
       sound.yearCleared();
       this.gameOver = true;
-      this.showOverlay('Year Cleared! 🎉🎊', `You cleared all 52 weeks!\nFinal Score: ${this.score}\n\nClick to restart`);
+      this.showOverlay('Year Cleared! 🎉🎊', `You cleared all 52 weeks!\nFinal Score: ${this.score}\n\nClick to restart from Week 1`);
       
       this.input.once('pointerdown', () => {
-        this.scene.restart();
+        // Always restart at week 1 (no progress saving)
+        this.scene.restart({
+          week: 1,
+          score: 0,
+          lives: 3
+        });
       });
     } else {
       sound.weekCleared();
@@ -977,10 +982,15 @@ export class MainScenePhase2 extends Phaser.Scene {
 
   private loseGame() {
     this.gameOver = true;
-    this.showOverlay('Meeting Overload 😵', `You've been overwhelmed by meetings!\nFinal Score: ${this.score}\n\nClick to try again`);
+    this.showOverlay('Meeting Overload 😵', `You've been overwhelmed by meetings!\nFinal Score: ${this.score}\n\nClick to restart from Week 1`);
     
     this.input.once('pointerdown', () => {
-      this.scene.restart();
+      // Always restart at week 1 (no progress saving)
+      this.scene.restart({
+        week: 1,
+        score: 0,
+        lives: 3
+      });
     });
   }
 
@@ -1014,10 +1024,15 @@ export class MainScenePhase2 extends Phaser.Scene {
 
   private quitGame() {
     this.hideOverlay();
-    this.showOverlay('🚪 QUITTING...', 'Restarting game');
+    this.showOverlay('🚪 QUITTING...', 'Restarting from Week 1');
     
     this.time.delayedCall(500, () => {
-      this.scene.restart();
+      // Always restart at week 1 (no progress saving)
+      this.scene.restart({
+        week: 1,
+        score: 0,
+        lives: 3
+      });
     });
   }
 
