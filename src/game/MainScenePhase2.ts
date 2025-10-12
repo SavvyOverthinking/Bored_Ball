@@ -72,37 +72,47 @@ export class MainScenePhase2 extends Phaser.Scene {
     lives?: number,
     fromWeekendBonus?: boolean 
   }) {
-    console.log('🎮 Phase 2 Scene Init:', data);
+    console.log('🎮 Phase 2 Scene Init - Data received:', data);
     
     // Check for URL param override (?week=25)
     const urlParams = new URLSearchParams(window.location.search);
     const urlWeek = Number(urlParams.get('week'));
     
-    this.currentWeek = Number.isFinite(urlWeek) && urlWeek > 0 && urlWeek <= 52 
-      ? urlWeek 
-      : (data.week || 1);
+    if (urlWeek && Number.isFinite(urlWeek) && urlWeek > 0 && urlWeek <= 52) {
+      this.currentWeek = urlWeek;
+      console.log(`🔧 DEV: Week overridden via URL param: ${urlWeek}`);
+    } else {
+      this.currentWeek = data.week || 1;
+    }
       
     this.score = data.score || 0;
     this.lives = data.lives || 3;
-    this.tuning = data.tuning || {
-      week: this.currentWeek,
-      density: 0.35,
-      bossRate: 0.04,
-      teamRate: 0.10,
-      lunchRate: 0.20,
-      minBlockMins: 45,
-      ballMaxCount: 2,
-      paddleScale: 1.2,
-      baseSpeed: 220
-    };
+    
+    // IMPORTANT: Use curve() to get proper tuning if not provided
+    if (data.tuning) {
+      this.tuning = data.tuning;
+      console.log(`✅ Using provided tuning for week ${this.currentWeek}`);
+    } else {
+      // This shouldn't happen, but fallback to gentle defaults
+      console.warn(`⚠️ No tuning provided! Using fallback for week ${this.currentWeek}`);
+      this.tuning = {
+        week: this.currentWeek,
+        density: 0.35,
+        bossRate: 0.04,
+        teamRate: 0.10,
+        lunchRate: 0.20,
+        minBlockMins: 45,
+        ballMaxCount: 2,
+        paddleScale: 1.2,
+        baseSpeed: 220
+      };
+    }
     
     this.powerUpSpawned = false;
     this.shieldActive = false;
     
-    console.log(`📈 Week ${this.currentWeek} Tuning:`, this.tuning);
-    if (urlWeek && urlWeek !== data.week) {
-      console.log(`🔧 DEV: Week overridden via URL param: ${urlWeek}`);
-    }
+    console.log(`📈 Week ${this.currentWeek} Tuning Applied:`, this.tuning);
+    console.log(`📊 Expected: ${Math.round(this.tuning.density * 100)}% density, ${this.tuning.ballMaxCount} max balls, ${this.tuning.baseSpeed} px/s speed`);
   }
 
   preload() {
@@ -147,6 +157,9 @@ export class MainScenePhase2 extends Phaser.Scene {
 
     // Create UI
     this.createUI();
+    
+    // Update week display (important for URL params and scene restarts)
+    this.updateWeek();
 
     // Setup collisions
     this.setupCollisions();
@@ -405,7 +418,9 @@ export class MainScenePhase2 extends Phaser.Scene {
       this.blockDataMap.set(blockId, item);
     });
     
-    console.log(`✨ Phase 2: Generated ${meetings.length} meetings for week ${this.currentWeek} (${renderItems.length} rendered with double-booking layout)`);
+    console.log(`✨ Phase 2: Generated ${meetings.length} meetings for week ${this.currentWeek}`);
+    console.log(`📊 Render stats: ${renderItems.length} blocks (including ${renderItems.filter(r => r.cols > 1).length} in double-bookings)`);
+    console.log(`🎨 Meeting types: Boss=${meetings.filter(m => m.type === 'boss').length}, Team=${meetings.filter(m => m.type === 'team').length}, Lunch=${meetings.filter(m => m.type === 'lunch').length}`);
   }
 
   private getHitPointsForMeeting(type: MeetingType): number {
@@ -731,12 +746,14 @@ export class MainScenePhase2 extends Phaser.Scene {
       fontStyle: '600',
     }).setOrigin(1, 0);
 
-    this.add.text(20, 10, `Week: ${this.currentWeek} / 52`, {
+    // Week counter text (store reference for updates)
+    const weekText = this.add.text(20, 10, `Week: ${this.currentWeek} / 52`, {
       fontFamily: 'Segoe UI, Inter, sans-serif',
       fontSize: '14px',
       color: '#0078d4',
       fontStyle: '600',
     }).setOrigin(0, 0);
+    weekText.setName('weekText'); // Name it so we can find it later
 
     this.instructionText = this.add.text(width / 2, 280, 'Move paddle to clear your meetings\nClick to start', {
       fontFamily: 'Segoe UI, Inter, sans-serif',
@@ -899,10 +916,14 @@ export class MainScenePhase2 extends Phaser.Scene {
     this.livesText.setText(`Lives: ${this.lives}`);
   }
 
-  // updateWeek is called indirectly through init/nextWeek
-  // private updateWeek() {
-  //   this.weekText.setText(`Week: ${this.currentWeek} / ${this.totalWeeks}`);
-  // }
+  private updateWeek() {
+    // Find and update the week text
+    const weekText = this.children.getByName('weekText') as Phaser.GameObjects.Text;
+    if (weekText) {
+      weekText.setText(`Week: ${this.currentWeek} / ${this.totalWeeks}`);
+      console.log(`📅 Week UI updated: ${this.currentWeek} / ${this.totalWeeks}`);
+    }
+  }
 
   private winGame() {
     if (this.currentWeek >= this.totalWeeks) {

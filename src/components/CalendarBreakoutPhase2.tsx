@@ -42,7 +42,35 @@ export function CalendarBreakoutPhase2() {
     };
 
     // Create game instance
-    phaserGameRef.current = new Phaser.Game(config);
+    const game = new Phaser.Game(config);
+    phaserGameRef.current = game;
+
+    // Start Phase 2 with proper initialization
+    game.events.once('ready', () => {
+      const mainScene = game.scene.getScene('CalendarScenePhase2');
+      if (mainScene) {
+        game.scene.stop('CalendarScenePhase2');
+        // Use phase2Router to start week 1 properly
+        setTimeout(() => {
+          game.scene.start('CalendarScenePhase2', {
+            week: 1,
+            score: 0,
+            lives: 3,
+            tuning: {
+              week: 1,
+              density: 0.35,
+              bossRate: 0.04,
+              teamRate: 0.10,
+              lunchRate: 0.20,
+              minBlockMins: 45,
+              ballMaxCount: 2,
+              paddleScale: 1.2,
+              baseSpeed: 220
+            }
+          });
+        }, 100);
+      }
+    });
 
     console.log('🎮 Phase 2 initialized:', {
       scenes: ['MainScenePhase2', 'WeekendStageScene'],
