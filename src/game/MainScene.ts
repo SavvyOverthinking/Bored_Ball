@@ -86,8 +86,6 @@ export class MainScene extends Phaser.Scene {
   }
 
   update() {
-    if (this.gameOver || this.isPaused) return;
-
     // Keep paddle velocity at zero (prevent drift)
     const paddleBody = this.paddle.body as Phaser.Physics.Arcade.Body;
     if (paddleBody) {
@@ -95,15 +93,19 @@ export class MainScene extends Phaser.Scene {
     }
 
     // Follow mouse with paddle
-    if (this.input.activePointer) {
+    if (this.input.activePointer && !this.isPaused) {
       const pointer = this.input.activePointer;
       this.paddle.x = Phaser.Math.Clamp(pointer.x, 50, getBoardDimensions().width - 50);
     }
 
-    // Start game on click if not started
-    if (!this.gameStarted && this.input.activePointer.isDown) {
+    // Start game on click if not started (allow even when gameOver for initial start)
+    if (!this.gameStarted && !this.isPaused && this.input.activePointer.isDown) {
+      this.gameOver = false; // Ensure gameOver is false when starting
       this.startGame();
     }
+
+    // Early return for paused/gameOver states AFTER handling initial click
+    if (this.gameOver || this.isPaused) return;
 
     // Check if all blocks destroyed
     if (this.blocks.getLength() === 0 && this.gameStarted && !this.gameOver) {
