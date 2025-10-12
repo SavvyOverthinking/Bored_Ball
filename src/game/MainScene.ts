@@ -710,6 +710,11 @@ export class MainScene extends Phaser.Scene {
     // Regenerate blocks for new week
     this.createBlocks();
     
+    // Re-establish collision detection with new blocks
+    // The old colliders still reference the cleared group, so we need to refresh them
+    this.physics.world.colliders.destroy();
+    this.setupCollisions();
+    
     // Create new ball
     this.createBall();
     
