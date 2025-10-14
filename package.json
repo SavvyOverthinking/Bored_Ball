@@ -5,12 +5,11 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
-    "build:production": "cross-env VITE_PHASE2=1 vite build",
+    "build": "cross-env VITE_PHASE2=1 vite build",
+    "build:v1": "vite build",
     "dev:phase2": "cross-env VITE_PHASE2=1 vite --port 3003",
-    "build:phase2": "cross-env VITE_PHASE2=1 vite build --outDir dist-phase2",
+    "dev:v1": "vite --port 3000",
     "preview": "vite preview --port 4173",
-    "preview:phase2": "vite preview --port 4174 --outDir dist-phase2",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "format": "prettier --write ."

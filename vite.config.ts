@@ -5,10 +5,6 @@ import { resolve } from 'path'
 // Check if Phase 2 is enabled
 const isPhase2 = process.env.VITE_PHASE2 === '1';
 
-console.log(`🎮 Vite Config: Phase 2 = ${isPhase2 ? 'ENABLED' : 'DISABLED'}`);
-console.log(`   VITE_PHASE2 env var: "${process.env.VITE_PHASE2}"`);
-console.log(`   Will build from: ${isPhase2 ? 'index-phase2.html' : 'index.html'}`);
-
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [react()],
