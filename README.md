@@ -29,6 +29,9 @@ Clear your Outlook calendar by destroying all meetings with physics-based gamepl
 
 ✨ **Outlook-Inspired Design** - Authentic Microsoft calendar aesthetic  
 🎯 **52-Week Campaign** - Clear an entire year of meetings  
+⚡ **Progressive Difficulty** - Gentle start, brutal endgame (Phase 2)  
+🎮 **Weekly Power-ups** - 5 different power-ups to help you survive  
+🏖️ **Weekend Bonus Stages** - Email dodge challenges every 5 weeks  
 ⚡ **Physics Effects** - Each meeting type modifies gameplay  
 📊 **Multi-Hit Blocks** - Boss meetings require 3 hits to destroy  
 🎨 **Theme Support** - Outlook, Google Calendar, or default themes  
@@ -62,8 +65,11 @@ cd Bored_Ball
 # Install dependencies
 npm install
 
-# Start development server
+# Start development server (Phase 2 - Enhanced)
 npm run dev
+
+# Or start v1.0 (Original)
+npm run dev:v1
 ```
 
 The game will be available at `http://localhost:3000`
@@ -71,7 +77,13 @@ The game will be available at `http://localhost:3000`
 ### Build for Production
 
 ```bash
+# Build Phase 2 (Enhanced - Default)
 npm run build
+
+# Build v1.0 (Original)
+npm run build:v1
+
+# Preview built version
 npm run preview
 ```
 
@@ -104,6 +116,20 @@ npm run preview
 - **Bonus points** for destroying harder blocks (Boss = 30 total)
 - Score persists across all 52 weeks
 
+### 🎮 Power-ups (Phase 2)
+
+Weekly power-ups spawn 8-16 seconds into each week. Collect by hitting with the ball!
+
+| Power-up | Effect | Duration |
+|----------|--------|----------|
+| ☕ **Coffee** | Steady ball speed (prevents chaos) | 15 seconds |
+| 🍻 **Happy Hour** | Wide paddle (1.4× size) | 30 seconds |
+| 🛡️ **DND** | Free shield (blocks next life loss) | Until used |
+| 📅 **Reschedule** | Clears all meetings in current hour | Instant |
+| 🧹 **Cleanup** | Softens 3 meetings to lunch breaks | Instant |
+
+**Note:** Only ONE power-up spawns per week!
+
 ---
 
 ## 🎨 Themes
@@ -123,12 +149,15 @@ http://localhost:3000?theme=default   # Generic style
 ### Scripts
 
 ```bash
-npm run dev        # Start dev server (port 3000)
-npm run build      # Build for production
-npm run preview    # Preview production build (port 4173)
-npm run typecheck  # TypeScript type checking
-npm run lint       # ESLint code linting
-npm run format     # Prettier code formatting
+npm run dev          # Start dev server (Phase 2 - port 3000)
+npm run dev:v1       # Start v1.0 dev server
+npm run dev:phase2   # Explicit Phase 2 dev (port 3003)
+npm run build        # Build Phase 2 for production
+npm run build:v1     # Build v1.0
+npm run preview      # Preview production build (port 4173)
+npm run typecheck    # TypeScript type checking
+npm run lint         # ESLint code linting
+npm run format       # Prettier code formatting
 ```
 
 ### Project Structure
@@ -155,7 +184,8 @@ calendar-breakout/
 │       └── README.md
 ├── .github/workflows/
 │   ├── ci.yml                      # CI pipeline
-│   └── pages.yml                   # GitHub Pages deploy
+│   └── deploy-prebuilt.yml         # GitHub Pages deploy
+├── dist/                           # Pre-built production files
 └── docs/                           # Documentation
 ```
 
@@ -195,21 +225,28 @@ The game currently uses code-drawn graphics. For Outlook-authentic sprites:
 
 ## 🚀 Deployment
 
-### GitHub Pages (Automatic)
+### GitHub Pages (Pre-built Approach)
 
-Push to `main` branch triggers automatic deployment to GitHub Pages.
+This project uses **pre-built deployment** to avoid CI build issues.
 
-**Setup:**
+**Deployment Process:**
+1. Build locally: `npm run build`
+2. Commit everything (including `dist/` folder): `git add -A && git commit -m "deploy: update"`
+3. Push to GitHub: `git push origin main`
+4. GitHub Actions deploys the pre-built `dist/` folder
+5. Live at: `https://savvyoverthinking.github.io/Bored_Ball/`
+
+**Setup (One Time):**
 1. Go to repo **Settings → Pages**
 2. Source: **GitHub Actions**
-3. Push code to `main`
-4. Game will be live at: `https://savvyoverthinking.github.io/Bored_Ball/`
+3. Ensure `dist/` is not in `.gitignore` (already configured)
 
 ### Vercel (Alternative)
 
 1. Import project at [vercel.com](https://vercel.com)
 2. Connect GitHub repository
-3. Deploy automatically on push
+3. Build command: `npm run build`
+4. Output directory: `dist`
 
 ---
 
@@ -238,15 +275,22 @@ Push to `main` branch triggers automatic deployment to GitHub Pages.
 
 ## 🔮 Roadmap
 
-### Planned Features
+### ✅ Phase 2 Features (Implemented!)
+- [x] Progressive difficulty curve (weeks 1-52)
+- [x] Weekly power-ups (5 types)
+- [x] Weekend bonus stages (every 5th week)
+- [x] Gentler early game (weeks 1-5)
+- [x] Difficulty scaling (gets brutal by week 52!)
+
+### Phase 3 - Planned Features
 - [ ] Sound effects (paddle hit, block destroy)
 - [ ] Particle effects on block destruction
-- [ ] Power-ups (wider paddle, slow ball, extra life)
-- [ ] Difficulty scaling (later weeks harder)
+- [ ] Additional power-ups (multiball, laser, etc.)
 - [ ] Local high score persistence
 - [ ] Mobile touch optimization
+- [ ] Achievements system
 
-### Calendar API Integration
+### Calendar API Integration (Future)
 - [ ] Google Calendar OAuth2 PKCE
 - [ ] Microsoft Graph API (Outlook)
 - [ ] Real-time calendar sync
