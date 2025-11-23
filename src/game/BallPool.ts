@@ -5,10 +5,13 @@
 
 import Phaser from 'phaser';
 import { PHYSICS, CANVAS } from './constants';
+import type { PhaserBall } from './types';
 
 export class BallPool {
   private group: Phaser.Physics.Arcade.Group;
   private scene: Phaser.Scene;
+  private pool: PhaserBall[] = [];
+  private activeBallCount: number = 0;
 
   constructor(scene: Phaser.Scene) {
     this.scene = scene;
@@ -20,21 +23,10 @@ export class BallPool {
   }
 
   /**
-   * Spawn a ball from the pool
+   * Configure ball physics (shared between create and reuse)
    */
-  spawn(x: number, y: number, vx: number, vy: number): Phaser.GameObjects.Arc {
-    // Check if we already have max balls
-    const activeBalls = this.group.getChildren().filter((child: any) => child.active);
-    if (activeBalls.length >= PHYSICS.MAX_BALLS) {
-      console.log('Max balls reached, not spawning');
-      return activeBalls[0] as Phaser.GameObjects.Arc;
-    }
-
-    // Always create fresh ball to avoid graphics corruption
-    const ball = this.scene.add.circle(x, y, PHYSICS.BALL_RADIUS, 0x2196f3);
-    this.scene.physics.add.existing(ball);
-    
-    // Configure ball
+  private configureBall(ball: PhaserBall, x: number, y: number, vx: number, vy: number): void {
+    ball.setPosition(x, y);
     ball.setActive(true).setVisible(true);
     ball.setDepth(100);
 
@@ -45,7 +37,7 @@ export class BallPool {
       body.setBounce(1, 1);
       body.setVelocity(vx, vy);
       body.onWorldBounds = true;
-      
+
       // Prevent wobble: strict physics settings
       body.setMaxVelocity(PHYSICS.MAX_SPEED, PHYSICS.MAX_SPEED);
       body.setDamping(false);
@@ -53,39 +45,72 @@ export class BallPool {
       body.allowGravity = false;
       body.setDrag(0);
       body.setFriction(0);
-      
+
       // Force position sync every frame
       body.updateCenter();
     }
+  }
 
-    this.group.add(ball);
+  /**
+   * Spawn a ball from the pool (reuses inactive balls when possible)
+   */
+  spawn(x: number, y: number, vx: number, vy: number): PhaserBall {
+    // Check if we already have max balls (use cached count for performance)
+    if (this.activeBallCount >= PHYSICS.MAX_BALLS) {
+      console.log('Max balls reached, not spawning');
+      // Return first active ball as fallback (maintains existing behavior)
+      const firstActive = this.group.getFirstAlive() as PhaserBall;
+      return firstActive;
+    }
+
+    // Try to reuse an inactive ball from the pool first
+    let ball: PhaserBall | undefined = this.pool.pop();
+
+    if (!ball) {
+      // No inactive balls available, create a new one
+      const newBall = this.scene.add.circle(x, y, PHYSICS.BALL_RADIUS, 0x2196f3);
+      this.scene.physics.add.existing(newBall);
+      this.group.add(newBall);
+      ball = newBall as PhaserBall;
+    }
+
+    // Configure the ball (whether new or reused)
+    this.configureBall(ball, x, y, vx, vy);
+    this.activeBallCount++;
 
     return ball;
   }
 
   /**
-   * Kill balls that are offscreen
+   * Kill balls that are offscreen (returns them to pool for reuse)
    */
   killIfOffscreen(): void {
-    const toRemove: any[] = [];
-    this.group.children.iterate((child: any) => {
-      if (child.active && child.y > CANVAS.HEIGHT + 30) {
-        toRemove.push(child);
+    const toDeactivate: PhaserBall[] = [];
+    this.group.children.iterate((child) => {
+      const ball = child as PhaserBall;
+      if (ball.active && ball.y > CANVAS.HEIGHT + 30) {
+        toDeactivate.push(ball);
       }
       return true;
     });
-    
-    // Actually destroy offscreen balls
-    toRemove.forEach((ball) => {
-      this.group.remove(ball, true, true); // Remove and destroy
+
+    // Deactivate offscreen balls and return to pool
+    toDeactivate.forEach((ball) => {
+      ball.setActive(false).setVisible(false);
+      const body = ball.body as Phaser.Physics.Arcade.Body | null;
+      if (body) {
+        body.setVelocity(0, 0);
+      }
+      this.pool.push(ball);
+      this.activeBallCount--;
     });
   }
 
   /**
    * Get all active balls
    */
-  getActiveBalls(): Phaser.GameObjects.Arc[] {
-    return this.group.getChildren().filter((child: any) => child.active) as Phaser.GameObjects.Arc[];
+  getActiveBalls(): PhaserBall[] {
+    return this.group.getChildren().filter((child) => (child as PhaserBall).active) as PhaserBall[];
   }
 
   /**
@@ -96,17 +121,19 @@ export class BallPool {
   }
 
   /**
-   * Clear all balls
+   * Clear all balls (reset pool and count)
    */
   clear(): void {
     this.group.clear(true, true);
+    this.pool = [];
+    this.activeBallCount = 0;
   }
 
   /**
-   * Get count of active balls
+   * Get count of active balls (O(1) using cached count)
    */
   getActiveBallCount(): number {
-    return this.group.getChildren().filter((child: any) => child.active).length;
+    return this.activeBallCount;
   }
 }
 

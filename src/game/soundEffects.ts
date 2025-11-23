@@ -3,13 +3,21 @@
  * Generates beep sounds without needing audio files
  */
 
+/**
+ * Extended Window interface with webkit prefix support
+ */
+interface WindowWithWebkit extends Window {
+  webkitAudioContext?: typeof AudioContext;
+}
+
 class SoundEffects {
   private audioContext: AudioContext | null = null;
   private enabled: boolean = true;
 
   constructor() {
     try {
-      this.audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const windowWithWebkit = window as WindowWithWebkit;
+      this.audioContext = new (window.AudioContext || windowWithWebkit.webkitAudioContext || AudioContext)();
     } catch (e) {
       console.warn('Web Audio API not supported');
       this.enabled = false;

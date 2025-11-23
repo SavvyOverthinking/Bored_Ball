@@ -1,69 +1,38 @@
 /**
  * Main Game Scene - Phase 2
  * Enhanced with level curve, power-ups, and weekend routing
+ * Now extends BaseCalendarScene to eliminate code duplication
  */
 
-import Phaser from 'phaser';
 import { getCalendarGridConfig, getBoardDimensions } from './calendarGenerator';
-import { applyMeetingEffect, type MeetingType } from './physicsModifiers';
-import { BallPool } from './BallPool';
-import { calculatePaddleBounceAngle, PHYSICS } from './constants';
+import { type MeetingType } from './physicsModifiers';
+import { PHYSICS, SCORING } from './constants';
 import { sound } from './soundEffects';
 import type { LevelTuning } from './levelCurve';
 import { startWeek } from './phase2Router';
 import { POWERUPS, POWERUP_CONFIG, getRandomPowerUp, type PowerUpKind } from './powerups';
 import { generateWeek, computeColumns, type Meeting } from './calendarGeneratorPhase2';
+import type { PhaserBall, PhaserBlock, GameObjectWithData, PowerUpContainer } from './types';
+import { BaseCalendarScene } from './BaseCalendarScene';
 
-export class MainScenePhase2 extends Phaser.Scene {
-  // Game objects
-  private paddle!: Phaser.Physics.Arcade.Sprite;
-  private ballPool!: BallPool;
-  private blocks!: Phaser.Physics.Arcade.StaticGroup;
+export class MainScenePhase2 extends BaseCalendarScene {
+  // Phase 2 specific: Meeting data map
   private blockDataMap: Map<string, Meeting> = new Map();
-  private blockHitPoints: Map<string, number> = new Map();
-  
-  // Ball stuck detection
-  private ballPositionHistory: Map<any, Array<{x: number, y: number, time: number}>> = new Map();
-  private ballCorrectionCooldown: Map<any, number> = new Map();
-  private stuckCheckCounter: number = 0;
-  
-  // Game state
-  private score: number = 0;
-  private lives: number = 3;
-  private currentWeek: number = 1;
-  private totalWeeks: number = 52;
-  private gameStarted: boolean = false;
-  private gameOver: boolean = false;
-  private isPaused: boolean = false;
-  private escapePressed: boolean = false;
-  private pointerLocked: boolean = false;
-  
+
+  // Event listener cleanup
+  private handlePointerLockChange?: () => void;
+
   // Phase 2: Level tuning
   private tuning!: LevelTuning;
-  
+
   // Phase 2: Power-ups
   private powerUpSpawned: boolean = false;
   private shieldActive: boolean = false;
-  private powerUpIcon?: Phaser.GameObjects.Container;
-  
-  // UI elements
-  private scoreText!: Phaser.GameObjects.Text;
-  private livesText!: Phaser.GameObjects.Text;
-  private weekText!: Phaser.GameObjects.Text;
-  private instructionText!: Phaser.GameObjects.Text;
-  private overlayBg!: Phaser.GameObjects.Rectangle;
-  private overlayText!: Phaser.GameObjects.Text;
-  private overlaySubtext!: Phaser.GameObjects.Text;
+  private powerUpIcon?: PowerUpContainer;
   private powerUpStatusText?: Phaser.GameObjects.Text;
-  
-  // Splash screen elements
-  private splashImage!: Phaser.GameObjects.Image;
-  private splashOverlay!: Phaser.GameObjects.Rectangle;
-  private countdownText!: Phaser.GameObjects.Text;
-  private isCountingDown: boolean = false;
 
   constructor() {
-    super({ key: 'CalendarScenePhase2' });
+    super('CalendarScenePhase2');
     console.log('🎯 MainScenePhase2 constructor called');
   }
 
@@ -76,27 +45,26 @@ export class MainScenePhase2 extends Phaser.Scene {
   }) {
     console.log('🎯 MainScenePhase2.init() called');
     console.log('🎮 Phase 2 Scene Init - Data received:', data);
-    
+
     // Check for URL param override (?week=25)
     const urlParams = new URLSearchParams(window.location.search);
     const urlWeek = Number(urlParams.get('week'));
-    
+
     if (urlWeek && Number.isFinite(urlWeek) && urlWeek > 0 && urlWeek <= 52) {
       this.currentWeek = urlWeek;
       console.log(`🔧 DEV: Week overridden via URL param: ${urlWeek}`);
     } else {
       this.currentWeek = data.week || 1;
     }
-      
+
     this.score = data.score || 0;
     this.lives = data.lives || 3;
-    
+
     // IMPORTANT: Use curve() to get proper tuning if not provided
     if (data.tuning) {
       this.tuning = data.tuning;
       console.log(`✅ Using provided tuning for week ${this.currentWeek}`);
     } else {
-      // This shouldn't happen, but fallback to gentle defaults
       console.warn(`⚠️ No tuning provided! Using fallback for week ${this.currentWeek}`);
       this.tuning = {
         week: this.currentWeek,
@@ -110,313 +78,99 @@ export class MainScenePhase2 extends Phaser.Scene {
         baseSpeed: 220
       };
     }
-    
+
     this.powerUpSpawned = false;
     this.shieldActive = false;
-    
+
     console.log(`📈 Week ${this.currentWeek} Tuning Applied:`, this.tuning);
     console.log(`📊 Expected: ${Math.round(this.tuning.density * 100)}% density, ${this.tuning.ballMaxCount} max balls, ${this.tuning.baseSpeed} px/s speed`);
   }
 
-  preload() {
-    // Load splash screen image
-    this.load.on('loaderror', (file: any) => {
-      console.log('Splash image not found, will use fallback', file.src);
-    });
-    this.load.image('splash', import.meta.env.BASE_URL + 'splash.jpg');
-  }
-
   create() {
-    // Reset game state
-    this.gameStarted = false;
-    this.gameOver = false;
-    this.isPaused = false;
-    this.escapePressed = false;
-    this.isCountingDown = false;
-    this.stuckCheckCounter = 0;
-    this.ballPositionHistory.clear();
-    this.ballCorrectionCooldown.clear();
-    
-    const { width, height } = getBoardDimensions();
-    this.add.rectangle(width / 2, height / 2, width, height, 0xfafbfc);
+    // Apply theme background
+    this.applyThemeBackground();
 
-    // Initialize ball pool
-    this.ballPool = new BallPool(this);
+    // Call base create logic
+    this.baseCreate();
 
-    // Draw calendar grid
-    this.drawCalendarGrid();
-
-    // Create blocks (Phase 2: with tuning applied)
-    this.createBlocks();
-
-    // Create paddle (Phase 2: with scale applied)
-    this.createPaddle();
-
-    // Create initial ball
-    this.createBall();
-
-    // Setup input
-    this.setupInput();
-
-    // Create UI
-    this.createUI();
-    
-    // Update week display (important for URL params and scene restarts)
+    // Update week display (important for URL params)
     this.updateWeek();
 
-    // Setup collisions
-    this.setupCollisions();
-    
-    // Create splash screen
-    this.createSplashScreen();
-    this.showSplashScreen();
-    
+    // Phase 2: Add power-up status text
+    this.createPowerUpUI();
+
     // Phase 2: Schedule power-up spawn
     this.schedulePowerUpSpawn();
   }
 
   update() {
-    const paddleBody = this.paddle.body as Phaser.Physics.Arcade.Body;
-    if (paddleBody) {
-      paddleBody.setVelocity(0, 0);
-    }
+    // Call base update with paddle velocity reset
+    this.baseUpdate();
 
-    if (this.splashImage.visible && this.input.activePointer.isDown) {
-      this.hideSplashAndStartCountdown();
-      return;
-    }
-
-    if (!this.gameStarted && !this.isPaused && !this.isCountingDown && this.input.activePointer.isDown) {
-      this.gameOver = false;
-      this.startGame();
-    }
-
-    if (this.gameOver || this.isPaused || this.isCountingDown) return;
-
-    // Manual paddle collision check for English physics
-    if (this.gameStarted && !this.gameOver && !this.isPaused) {
-      this.ballPool.getGroup().getChildren().forEach((ball: any) => {
-        const ballBody = ball.body as Phaser.Physics.Arcade.Body;
-        
-        // Paddle collision (only when ball moving downward)
-        if (ballBody && ballBody.velocity.y > 0) {
-          if (this.physics.overlap(ball, this.paddle)) {
-            this.ballHitPaddle(ball, this.paddle);
-          }
-        }
-        
-        // Powerup collision
-        if (this.powerUpIcon && ballBody) {
+    // Phase 2: Check for power-up collision
+    if (this.gameStarted && !this.gameOver && !this.isPaused && this.powerUpIcon) {
+      this.ballPool.getGroup().getChildren().forEach((ballObj) => {
+        const ball = ballObj as PhaserBall;
+        if (ball.body && this.powerUpIcon) {
           if (this.physics.overlap(ball, this.powerUpIcon)) {
             this.collectPowerUp(ball, this.powerUpIcon);
           }
         }
       });
     }
-
-    if (this.blocks.getLength() === 0 && this.gameStarted && !this.gameOver) {
-      this.winGame();
-    }
-
-    // Ball stuck detection
-    this.stuckCheckCounter++;
-    if (this.gameStarted && this.stuckCheckCounter >= 10) {
-      this.stuckCheckCounter = 0;
-      const currentTime = this.time.now;
-      
-      this.ballPool.getGroup().children.iterate((ball: any) => {
-        if (ball.active && ball.body) {
-          const body = ball.body as Phaser.Physics.Arcade.Body;
-          const absVelocityY = Math.abs(body.velocity.y);
-          
-          const lastCorrection = this.ballCorrectionCooldown.get(ball) || 0;
-          if (currentTime - lastCorrection < 1000) {
-            return true;
-          }
-          
-          if (!this.ballPositionHistory.has(ball)) {
-            this.ballPositionHistory.set(ball, []);
-          }
-          const history = this.ballPositionHistory.get(ball)!;
-          history.push({ x: ball.x, y: ball.y, time: currentTime });
-          
-          if (history.length > 90) {
-            history.shift();
-          }
-          
-          let needsCorrection = false;
-          
-          if (absVelocityY < 60) {
-            needsCorrection = true;
-          }
-          
-          if (history.length >= 60) {
-            const recent = history.slice(-60);
-            const avgY = recent.reduce((sum, p) => sum + p.y, 0) / recent.length;
-            const yVariance = recent.reduce((sum, p) => sum + Math.pow(p.y - avgY, 2), 0) / recent.length;
-            
-            if (yVariance < 300) {
-              needsCorrection = true;
-            }
-          }
-          
-          if (needsCorrection) {
-            const speed = Phaser.Math.Clamp(body.velocity.length(), PHYSICS.MIN_SPEED, PHYSICS.MAX_SPEED);
-            const randomAngle = Phaser.Math.Between(40, 70) * Math.PI / 180;
-            const direction = body.velocity.y > 0 ? 1 : -1;
-            
-            body.setVelocity(
-              Math.cos(randomAngle) * speed * (body.velocity.x > 0 ? 1 : -1),
-              Math.sin(randomAngle) * speed * direction
-            );
-            
-            this.ballPositionHistory.set(ball, []);
-            this.ballCorrectionCooldown.set(ball, currentTime);
-          }
-        }
-        return true;
-      });
-    }
-
-    this.ballPool.killIfOffscreen();
-
-    if (this.ballPool.getActiveBallCount() === 0 && this.gameStarted && !this.gameOver) {
-      this.loseLife();
-    }
-
-    if (!this.gameStarted) {
-      const firstBall = this.ballPool.getGroup().getFirstAlive();
-      if (firstBall) {
-        firstBall.x = this.paddle.x;
-        firstBall.y = this.paddle.y - 30;
-      }
-    }
   }
 
-  private drawCalendarGrid() {
-    const config = getCalendarGridConfig();
-    const graphics = this.add.graphics();
-
-    config.days.forEach((day, index) => {
-      const x = config.padding + index * (config.columnWidth + config.columnGap) + config.columnWidth / 2;
-      this.add.text(x, 25, day.substring(0, 3).toUpperCase(), {
-        fontFamily: 'Segoe UI, Inter, sans-serif',
-        fontSize: '12px',
-        color: '#605e5c',
-        fontStyle: '600',
-      }).setOrigin(0.5);
-    });
-
-    const gridHeight = config.gridHeight;
-    const hourCount = config.hours.length - 1;
-    
-    config.hours.forEach((hour, index) => {
-      const y = config.headerHeight + (gridHeight / hourCount) * index;
-      let displayHour = hour;
-      let ampm = 'AM';
-      
-      if (hour === 0) {
-        displayHour = 12;
-      } else if (hour === 12) {
-        ampm = 'PM';
-      } else if (hour > 12) {
-        displayHour = hour - 12;
-        ampm = 'PM';
-      }
-      
-      const timeStr = `${displayHour} ${ampm}`;
-      this.add.text(18, y - 5, timeStr, {
-        fontFamily: 'Segoe UI, Inter, sans-serif',
-        fontSize: '10px',
-        color: '#8a8886',
-      }).setOrigin(0, 0);
-    });
-
-    graphics.lineStyle(1, 0xedebe9, 1);
-    
-    config.hours.forEach((_, index) => {
-      const y = config.headerHeight + (gridHeight / hourCount) * index;
-      graphics.lineBetween(
-        config.padding,
-        y,
-        getBoardDimensions().width - config.padding,
-        y
-      );
-    });
-
-    for (let i = 1; i < config.days.length; i++) {
-      const x = config.padding + i * (config.columnWidth + config.columnGap) - config.columnGap / 2;
-      graphics.lineStyle(1, 0xe1dfdd, 1);
-      graphics.lineBetween(
-        x,
-        config.headerHeight,
-        x,
-        config.headerHeight + gridHeight
-      );
-    }
-  }
-
-  private createBlocks() {
+  /**
+   * Create blocks from generated calendar (Phase 2 specific)
+   */
+  protected createBlocks() {
     this.blocks = this.physics.add.staticGroup();
-    
-    // Phase 2: Generate deterministic calendar for this week
+
     const meetings = generateWeek(this.currentWeek);
     const renderItems = computeColumns(meetings);
-    
+
     const config = getCalendarGridConfig();
     const START_HOUR = 9;
     const END_HOUR = 17;
     const DAY_MINS = (END_HOUR - START_HOUR) * 60;
-    
-    // Helper to get color for meeting type
-    const getColorForType = (type: MeetingType): number => {
-      switch (type) {
-        case 'boss': return 0xe53935;
-        case 'team': return 0x4caf50;
-        case '1:1': return 0x5c6bc0;
-        case 'lunch': return 0xfbc02d;
-        case 'personal': return 0x8e24aa;
-        default: return 0x5c6bc0;
-      }
-    };
-    
+
+    // Use theme colors from base class (supports ?theme=google URL parameter)
+    const getColorForType = (type: MeetingType) => this.getColorForMeetingType(type);
+
     renderItems.forEach((item, index) => {
       const blockId = `meeting-${this.currentWeek}-${index}`;
-      
-      // Calculate positions using double-booking columns
+
       const dayX = config.padding + item.day * (config.columnWidth + config.columnGap);
       const yPerMin = config.gridHeight / DAY_MINS;
-      
+
       const bandTop = config.headerHeight + item.startMin * yPerMin;
       const bandBot = config.headerHeight + item.endMin * yPerMin;
-      
-      // Apply column layout for double-booking
-      const fullW = config.columnWidth - 6; // margin
-      const w = (fullW / item.cols) - 4;    // 4px gutter between columns
+
+      const fullW = config.columnWidth - 6;
+      const w = (fullW / item.cols) - 4;
       const x = dayX + (fullW / item.cols) * item.col + w / 2 + 4;
       const y = (bandTop + bandBot) / 2;
       const h = Math.max(20, bandBot - bandTop - 4);
-      
+
       const color = getColorForType(item.type);
-      
-      // Create main block rectangle
+
       const blockRect = this.add.rectangle(x, y, w, h, color, 0.85);
       blockRect.setStrokeStyle(1, 0xffffff, 0.2);
       this.blocks.add(blockRect);
-      
-      const block = blockRect as any;
+
+      const block = blockRect as PhaserBlock;
       block.setData('meetingType', item.type);
       block.setData('blockId', blockId);
-      
-      // Create left accent bar (Outlook signature)
+
+      // Create left accent bar
       const accentBar = this.add.rectangle(x - w / 2 + 2, y, 3, h, color, 1.0);
       accentBar.setData('blockId', blockId);
       accentBar.setDepth(2);
-      
-      // Initialize hit points (onboarding blocks = 1 hit)
+
+      // Initialize hit points
       const hitPoints = item.title === 'Onboarding' ? 1 : this.getHitPointsForMeeting(item.type);
       this.blockHitPoints.set(blockId, hitPoints);
-      
+
       // Add title text (if block is tall enough)
       if (h > 18) {
         const fontSize = h > 30 ? '10px' : '8px';
@@ -433,21 +187,22 @@ export class MainScenePhase2 extends Phaser.Scene {
             wordWrap: { width: w - 10 },
           }
         ).setOrigin(0, 0);
-        
+
         text.setData('blockId', blockId);
         text.setDepth(5);
       }
-      
-      // Store meeting data
+
       this.blockDataMap.set(blockId, item);
     });
-    
+
     console.log(`✨ Phase 2: Generated ${meetings.length} meetings for week ${this.currentWeek}`);
     console.log(`📊 Render stats: ${renderItems.length} blocks (including ${renderItems.filter(r => r.cols > 1).length} in double-bookings)`);
-    console.log(`🎨 Meeting types: Boss=${meetings.filter(m => m.type === 'boss').length}, Team=${meetings.filter(m => m.type === 'team').length}, Lunch=${meetings.filter(m => m.type === 'lunch').length}`);
   }
 
-  private getHitPointsForMeeting(type: MeetingType): number {
+  /**
+   * Get hit points for meeting type (Phase 2 implementation)
+   */
+  protected getHitPointsForMeeting(type: MeetingType): number {
     switch (type) {
       case 'boss': return 3;
       case 'team': return 2;
@@ -458,48 +213,32 @@ export class MainScenePhase2 extends Phaser.Scene {
     }
   }
 
-  private createPaddle() {
-    const { width, height } = getBoardDimensions();
-    
-    const paddleWidth = 120 * this.tuning.paddleScale;
-    const paddleGraphics = this.add.rectangle(width / 2, height - 50, paddleWidth, 18, 0x0078d4, 1);
-    paddleGraphics.setStrokeStyle(1, 0x106ebe, 1);
-    
-    this.physics.add.existing(paddleGraphics);
-    this.paddle = paddleGraphics as any;
-    
-    const body = this.paddle.body as Phaser.Physics.Arcade.Body;
-    if (body) {
-      body.immovable = true;
-      body.setSize(paddleWidth, 18);
-    }
-    
-    this.paddle.setDepth(10);
-    console.log(`🎯 Phase 2 Paddle scale: ${this.tuning.paddleScale}×`);
+  /**
+   * Get paddle width (Phase 2: uses tuning scale)
+   */
+  protected getPaddleWidth(): number {
+    return PHYSICS.PADDLE_WIDTH * this.tuning.paddleScale;
   }
 
-  private createBall() {
-    const { width, height } = getBoardDimensions();
-    this.ballPool.spawn(width / 2, height - 80, 0, 0);
-  }
-
+  /**
+   * Create extra ball (Phase 2: uses tuned max count)
+   */
   public createExtraBall(x: number, y: number, velocityX: number, velocityY: number) {
-    // Phase 2: Use tuned ball max count
     if (this.ballPool.getActiveBallCount() >= this.tuning.ballMaxCount) {
       console.log(`Max balls reached (${this.tuning.ballMaxCount}), skipping`);
       return;
     }
-    
+
     this.ballPool.spawn(x, y, velocityX, velocityY);
   }
 
-  private setupInput() {
-    const { width } = getBoardDimensions();
-    
-    // Hide cursor and show instruction
-    this.input.setDefaultCursor('default');
-    
-    // Pointer lock on FIRST click (no second click needed)
+  /**
+   * Override setupInput to add Phase 2 specific controls
+   */
+  protected setupInputBase() {
+    super.setupInputBase();
+
+    // Phase 2: Enhanced pointer lock (request on FIRST click)
     this.input.once('pointerdown', () => {
       const canvas = this.game.canvas;
       if (canvas && !this.pointerLocked) {
@@ -507,92 +246,46 @@ export class MainScenePhase2 extends Phaser.Scene {
         this.input.setDefaultCursor('none');
       }
     });
-    
-    // Listen for pointer lock changes
-    document.addEventListener('pointerlockchange', () => {
+
+    // Phase 2: Store handler for cleanup
+    this.handlePointerLockChange = () => {
       this.pointerLocked = document.pointerLockElement === this.game.canvas;
       if (!this.pointerLocked) {
         this.input.setDefaultCursor('default');
       }
-    });
-    
-    // Move paddle with pointer movement
-    this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
-      if (this.gameOver || this.isPaused || this.isCountingDown || this.splashImage.visible) return;
-      
-      if (this.pointerLocked) {
-        // Use relative movement when locked (better control)
-        const movementX = pointer.movementX || 0;
-        this.paddle.x = Phaser.Math.Clamp(
-          this.paddle.x + movementX * 1.5,
-          60, 
-          width - 60
-        );
-      } else {
-        // Fallback to absolute positioning for touch/non-locked
-        this.paddle.x = Phaser.Math.Clamp(pointer.x, 60, width - 60);
-      }
-    });
+    };
+    document.addEventListener('pointerlockchange', this.handlePointerLockChange);
 
-    // ESC key handler
-    this.input.keyboard?.on('keydown-ESC', () => {
-      // Release pointer lock
-      if (this.pointerLocked) {
-        document.exitPointerLock();
-      }
-      
-      if (this.gameOver) return;
-
-      if (!this.isPaused && !this.escapePressed) {
-        this.pauseGame();
-        this.escapePressed = true;
-      } else if (this.isPaused && this.escapePressed) {
-        this.quitGame();
-      }
-    });
-    
-    // DEV: Cheat codes for QA testing
+    // Phase 2: Dev cheat codes
     this.input.keyboard?.on('keydown', (event: KeyboardEvent) => {
-      // Ctrl+Shift+ArrowUp: Next week
       if (event.ctrlKey && event.shiftKey && event.code === 'ArrowUp') {
         event.preventDefault();
         const nextWeek = Math.min(52, this.currentWeek + 1);
         this.showDevToast(`DEV: Jumping to Week ${nextWeek}`);
-        this.scene.restart({ 
-          week: nextWeek, 
-          score: this.score, 
-          lives: this.lives 
-        });
+        this.scene.restart({ week: nextWeek, score: this.score, lives: this.lives });
       }
-      
-      // Ctrl+Shift+ArrowDown: Previous week
+
       if (event.ctrlKey && event.shiftKey && event.code === 'ArrowDown') {
         event.preventDefault();
         const prevWeek = Math.max(1, this.currentWeek - 1);
         this.showDevToast(`DEV: Jumping to Week ${prevWeek}`);
-        this.scene.restart({ 
-          week: prevWeek, 
-          score: this.score, 
-          lives: this.lives 
-        });
+        this.scene.restart({ week: prevWeek, score: this.score, lives: this.lives });
       }
-      
-      // Ctrl+Shift+L: Add extra life (dev)
+
       if (event.ctrlKey && event.shiftKey && event.code === 'KeyL') {
         event.preventDefault();
         this.lives++;
         this.updateLives();
         this.showDevToast(`DEV: +1 Life (${this.lives} total)`);
       }
-      
-      // Ctrl+Shift+B: Spawn ball (dev)
+
       if (event.ctrlKey && event.shiftKey && event.code === 'KeyB') {
         event.preventDefault();
         this.createExtraBall(this.paddle.x, this.paddle.y - 30, 100, -200);
         this.showDevToast(`DEV: Extra ball spawned`);
       }
     });
-    
+
     // Release pointer lock on blur
     this.game.events.on(Phaser.Core.Events.BLUR, () => {
       if (this.pointerLocked) {
@@ -600,9 +293,9 @@ export class MainScenePhase2 extends Phaser.Scene {
       }
     });
   }
-  
+
   /**
-   * Show dev toast notification (for cheat codes)
+   * Show dev toast notification (Phase 2 specific)
    */
   private showDevToast(message: string) {
     const { width, height } = getBoardDimensions();
@@ -612,7 +305,7 @@ export class MainScenePhase2 extends Phaser.Scene {
       backgroundColor: '#333333',
       padding: { x: 12, y: 8 }
     }).setOrigin(0.5).setDepth(3000);
-    
+
     this.tweens.add({
       targets: toast,
       alpha: 0,
@@ -623,105 +316,18 @@ export class MainScenePhase2 extends Phaser.Scene {
     });
   }
 
-  private setupCollisions() {
-    this.physics.world.setBoundsCollision(true, true, true, false);
-    
-    // Manual paddle & powerup collision handled in update() for full control
-    // (No automatic collision setup for paddle or powerups)
-    
-    this.physics.add.collider(
-      this.ballPool.getGroup(),
-      this.blocks,
-      this.ballHitBlock,
-      undefined,
-      this
-    );
-  }
-
-  private ballHitPaddle(ball: any, paddle: any) {
-    const ballBody = ball.body as Phaser.Physics.Arcade.Body;
-    
-    sound.paddleHit();
-    
-    // Calculate "English" - angle based on where ball hits paddle
-    const paddleWidth = PHYSICS.PADDLE_WIDTH * this.tuning.paddleScale;
-    const angle = calculatePaddleBounceAngle(ball.x, paddle.x, paddleWidth);
-    
-    // Get relative hit position for debugging
-    const relativePos = (ball.x - paddle.x) / (paddleWidth / 2);
-    const hitZone = Math.abs(relativePos) < 0.14 ? 'CENTER' : 
-                    Math.abs(relativePos) < 0.35 ? 'INNER' :
-                    Math.abs(relativePos) < 0.65 ? 'MIDDLE' : 'OUTER';
-    
-    console.log(`🎯 Paddle hit: ${hitZone} zone, angle: ${Phaser.Math.RadToDeg(angle).toFixed(1)}°, pos: ${relativePos.toFixed(2)}`);
-    
-    // Maintain current speed but change direction
-    const currentSpeed = ballBody.velocity.length();
-    const speed = Phaser.Math.Clamp(currentSpeed, PHYSICS.MIN_SPEED, PHYSICS.MAX_SPEED);
-    
-    // Apply new velocity with English angle
-    const newVelocityX = Math.sin(angle) * speed;
-    const newVelocityY = -Math.abs(Math.cos(angle)) * speed; // Always bounce upward
-    
-    // Manually separate ball from paddle (move it above)
-    ball.y = paddle.y - (paddle.height / 2) - (ball.height / 2) - 2;
-    
-    // Set velocity AFTER position update
-    ballBody.setVelocity(newVelocityX, newVelocityY);
-    
-    // Verify the angle was applied
-    console.log(`   → Final velocity: (${newVelocityX.toFixed(1)}, ${newVelocityY.toFixed(1)})`);
-  }
-
-  private ballHitBlock(ball: any, block: any) {
-    const meetingType = block.getData('meetingType') as MeetingType;
-    const blockId = block.getData('blockId') as string;
-
-    const currentHP = this.blockHitPoints.get(blockId) || 1;
-    const newHP = currentHP - 1;
-    
-    if (newHP <= 0) {
-      sound.blockDestroyed();
-      block.destroy();
-      
-      this.children.getChildren().forEach((child) => {
-        if (child.getData('blockId') === blockId) {
-          child.destroy();
-        }
-      });
-      
-      this.blockHitPoints.delete(blockId);
-      this.score += currentHP * 10;
-      this.updateScore();
-    } else {
-      sound.blockHit();
-      this.blockHitPoints.set(blockId, newHP);
-      
-      this.tweens.add({
-        targets: block,
-        alpha: 0.5,
-        duration: 100,
-        yoyo: true,
-        ease: 'Power1'
-      });
-      
-      this.score += 5;
-      this.updateScore();
-    }
-
-    applyMeetingEffect(meetingType, ball, this);
-  }
-
-  private startGame() {
+  /**
+   * Override startGame to use tuned base speed
+   */
+  protected startGameBase() {
     if (this.gameStarted) return;
-    
+
     this.gameStarted = true;
     this.instructionText.setVisible(false);
 
     const firstBall = this.ballPool.getGroup().getFirstAlive();
     if (firstBall && firstBall.body) {
       const angle = Phaser.Math.Between(-45, 45) * Math.PI / 180;
-      // Phase 2: Use tuned base speed
       const speed = this.tuning.baseSpeed;
       (firstBall.body as Phaser.Physics.Arcade.Body).setVelocity(
         Math.sin(angle) * speed,
@@ -731,79 +337,26 @@ export class MainScenePhase2 extends Phaser.Scene {
     }
   }
 
-  private loseLife() {
-    // Phase 2: Check shield
+  /**
+   * Override loseLife to check shield (Phase 2 specific)
+   */
+  protected loseLifeBase() {
     if (this.shieldActive) {
       this.shieldActive = false;
       sound.paddleHit();
       this.showShieldUsed();
       return;
     }
-    
-    this.lives--;
-    this.updateLives();
-    sound.lifeLost();
 
-    if (this.lives <= 0) {
-      this.loseGame();
-    } else {
-      this.gameStarted = false;
-      this.createBall();
-      this.instructionText.setVisible(true);
-      this.instructionText.setText('Click to launch ball');
-    }
+    // Call parent implementation
+    super.loseLifeBase();
   }
 
-  private createUI() {
+  /**
+   * Create power-up UI (Phase 2 specific)
+   */
+  private createPowerUpUI() {
     const { width } = getBoardDimensions();
-
-    this.scoreText = this.add.text(width - 20, 10, `Score: ${this.score}`, {
-      fontFamily: 'Segoe UI, Inter, sans-serif',
-      fontSize: '14px',
-      color: '#323130',
-      fontStyle: '600',
-    }).setOrigin(1, 0);
-
-    this.livesText = this.add.text(width - 20, 32, `Lives: ${this.lives}`, {
-      fontFamily: 'Segoe UI, Inter, sans-serif',
-      fontSize: '14px',
-      color: '#323130',
-      fontStyle: '600',
-    }).setOrigin(1, 0);
-
-    // Week counter text (store as class property for updates)
-    this.weekText = this.add.text(20, 10, `Week: ${this.currentWeek} / ${this.totalWeeks}`, {
-      fontFamily: 'Segoe UI, Inter, sans-serif',
-      fontSize: '14px',
-      color: '#0078d4',
-      fontStyle: '600',
-    }).setOrigin(0, 0);
-
-    this.instructionText = this.add.text(width / 2, 280, 'Move paddle to clear your meetings\nClick to start', {
-      fontFamily: 'Segoe UI, Inter, sans-serif',
-      fontSize: '16px',
-      color: '#605e5c',
-      align: 'center',
-      fontStyle: '400',
-    }).setOrigin(0.5);
-
-    this.overlayBg = this.add.rectangle(width / 2, 320, width, 640, 0x000000, 0.7).setVisible(false);
-    
-    this.overlayText = this.add.text(width / 2, 280, '', {
-      fontFamily: 'Inter, sans-serif',
-      fontSize: '48px',
-      color: '#ffffff',
-      fontStyle: 'bold',
-    }).setOrigin(0.5).setVisible(false);
-
-    this.overlaySubtext = this.add.text(width / 2, 340, '', {
-      fontFamily: 'Inter, sans-serif',
-      fontSize: '20px',
-      color: '#e0e0e0',
-      align: 'center',
-    }).setOrigin(0.5).setVisible(false);
-    
-    // Phase 2: Power-up status text
     this.powerUpStatusText = this.add.text(width / 2, 54, '', {
       fontFamily: 'Segoe UI, Inter, sans-serif',
       fontSize: '12px',
@@ -813,184 +366,25 @@ export class MainScenePhase2 extends Phaser.Scene {
     }).setOrigin(0.5).setVisible(false);
   }
 
-  private createSplashScreen() {
-    const { width, height } = getBoardDimensions();
-    
-    this.splashOverlay = this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.7);
-    this.splashOverlay.setDepth(999);
-    this.splashOverlay.setVisible(false);
-    
-    if (this.textures.exists('splash')) {
-      this.splashImage = this.add.image(width / 2, height / 2, 'splash');
-      const scale = Math.min(width / this.splashImage.width, height / this.splashImage.height) * 0.95;
-      this.splashImage.setScale(scale);
-    } else {
-      const graphics = this.add.graphics();
-      graphics.fillStyle(0x1a1a2e, 1);
-      graphics.fillRect(0, 0, width, height);
-      graphics.lineStyle(8, 0xFF6600, 1);
-      graphics.strokeRect(20, 20, width - 40, height - 40);
-      graphics.fillStyle(0x16213E, 1);
-      graphics.fillRoundedRect(width / 2 - 300, 80, 600, 120, 10);
-      graphics.generateTexture('fallback_splash', width, height);
-      graphics.destroy();
-      
-      this.splashImage = this.add.image(width / 2, height / 2, 'fallback_splash');
-      
-      const titleText = this.add.text(width / 2, 140, '📅 CALENDAR BREAKOUT', {
-        fontFamily: 'Impact, Arial Black, sans-serif',
-        fontSize: '48px',
-        color: '#00D9FF',
-        stroke: '#FF6600',
-        strokeThickness: 4
-      }).setOrigin(0.5).setDepth(1001);
-      
-      const subtitleText = this.add.text(width / 2, 200, 'DESTROY YOUR MEETINGS! (Phase 2)', {
-        fontFamily: 'Arial Black, sans-serif',
-        fontSize: '24px',
-        color: '#FFD700'
-      }).setOrigin(0.5).setDepth(1001);
-      
-      const instructText = this.add.text(width / 2, height - 100, 'Click anywhere to start', {
-        fontFamily: 'Arial, sans-serif',
-        fontSize: '20px',
-        color: '#FFFFFF',
-        backgroundColor: '#FF6600',
-        padding: { x: 20, y: 10 }
-      }).setOrigin(0.5).setDepth(1001);
-      
-      (this.splashImage as any).overlayTexts = [titleText, subtitleText, instructText];
-    }
-    
-    this.splashImage.setDepth(1000);
-    this.splashImage.setVisible(false);
-    this.splashImage.setInteractive({ useHandCursor: true });
-    
-    this.countdownText = this.add.text(width / 2, height / 2, '', {
-      fontFamily: 'Impact, Arial Black, sans-serif',
-      fontSize: '120px',
-      color: '#FFD700',
-      stroke: '#FF6600',
-      strokeThickness: 8,
-      shadow: {
-        offsetX: 4,
-        offsetY: 4,
-        color: '#000000',
-        blur: 10,
-        fill: true
-      }
-    }).setOrigin(0.5).setDepth(1001).setVisible(false);
-  }
-
-  private showSplashScreen() {
-    this.splashOverlay.setVisible(true);
-    this.splashImage.setVisible(true);
-    
-    const overlayTexts = (this.splashImage as any).overlayTexts;
-    if (overlayTexts) {
-      overlayTexts.forEach((text: any) => text.setVisible(true));
-    }
-    
-    this.instructionText.setVisible(false);
-    this.gameStarted = false;
-    this.isCountingDown = false;
-  }
-
-  private hideSplashAndStartCountdown() {
-    this.splashImage.setVisible(false);
-    
-    const overlayTexts = (this.splashImage as any).overlayTexts;
-    if (overlayTexts) {
-      overlayTexts.forEach((text: any) => text.setVisible(false));
-    }
-    
-    this.startCountdown();
-  }
-
-  private startCountdown() {
-    this.isCountingDown = true;
-    this.countdownText.setVisible(true);
-    
-    let count = 3;
-    this.countdownText.setText(count.toString());
-    
-    this.time.addEvent({
-      delay: 1000,
-      repeat: 2,
-      callback: () => {
-        count--;
-        if (count > 0) {
-          this.countdownText.setText(count.toString());
-        } else {
-          this.countdownText.setVisible(false);
-          this.splashOverlay.setVisible(false);
-          this.isCountingDown = false;
-          this.instructionText.setVisible(true);
-          this.instructionText.setText(`Week ${this.currentWeek} - Click to launch!`);
-        }
-      }
-    });
-  }
-
-  private updateScore() {
-    this.scoreText.setText(`Score: ${this.score}`);
-  }
-
-  private updateLives() {
-    this.livesText.setText(`Lives: ${this.lives}`);
-  }
-
-  private updateWeek() {
-    if (this.weekText) {
-      this.weekText.setText(`Week: ${this.currentWeek} / ${this.totalWeeks}`);
-      console.log(`📅 Week UI updated: ${this.currentWeek} / ${this.totalWeeks}`);
-    } else {
-      console.error('❌ weekText not found!');
-    }
-  }
-
-  private winGame() {
-    if (this.currentWeek >= this.totalWeeks) {
-      sound.yearCleared();
-      this.gameOver = true;
-      this.showOverlay('Year Cleared! 🎉🎊', `You cleared all 52 weeks!\nFinal Score: ${this.score}\n\nClick to restart from Week 1`);
-      
-      this.input.once('pointerdown', () => {
-        // Always restart at week 1 (no progress saving)
-        this.scene.restart({
-          week: 1,
-          score: 0,
-          lives: 3
-        });
-      });
-    } else {
-      sound.weekCleared();
-      this.gameOver = true;
-      this.showOverlay(`Week ${this.currentWeek} Cleared! 🎉`, `Great job! Moving to Week ${this.currentWeek + 1}...\nScore: ${this.score}\n\nClick to continue`);
-      
-      this.input.once('pointerdown', () => {
-        this.nextWeek();
-      });
-    }
-  }
-
-  private nextWeek() {
+  /**
+   * Handle week transition (Phase 2: uses router)
+   */
+  protected handleNextWeek() {
     this.currentWeek++;
     this.gameStarted = false;
     this.gameOver = false;
-    
+
     this.ballPool.getGroup().clear(true, true);
     this.ballPositionHistory.clear();
     this.ballCorrectionCooldown.clear();
-    
+
     this.blocks.clear(true, true);
     this.blockDataMap.clear();
     this.blockHitPoints.clear();
-    
+
     this.physics.world.colliders.destroy();
-    
     this.hideOverlay();
-    
+
     // Phase 2: Use router for week transitions
     startWeek(this, this.currentWeek, {
       score: this.score,
@@ -998,65 +392,27 @@ export class MainScenePhase2 extends Phaser.Scene {
     });
   }
 
-  private hideOverlay() {
-    this.overlayBg.setVisible(false);
-    this.overlayText.setVisible(false);
-    this.overlaySubtext.setVisible(false);
-  }
-
-  private loseGame() {
+  /**
+   * Override loseGame for Phase 2 restart behavior
+   */
+  protected loseGameBase() {
     this.gameOver = true;
     this.showOverlay('Meeting Overload 😵', `You've been overwhelmed by meetings!\nFinal Score: ${this.score}\n\nClick to restart from Week 1`);
-    
+
     this.input.once('pointerdown', () => {
-      // Always restart at week 1 (no progress saving)
-      this.scene.restart({
-        week: 1,
-        score: 0,
-        lives: 3
-      });
+      this.scene.restart({ week: 1, score: 0, lives: 3 });
     });
   }
 
-  private showOverlay(title: string, message: string) {
-    this.overlayBg.setVisible(true);
-    this.overlayText.setText(title).setVisible(true);
-    this.overlaySubtext.setText(message).setVisible(true);
-  }
-
-  private pauseGame() {
-    this.isPaused = true;
-    this.physics.pause();
-    
-    if (this.pointerLocked) {
-      document.exitPointerLock();
-    }
-    
-    this.showOverlay('⏸️  PAUSED', 'Press ESC again to QUIT and restart\nClick anywhere to resume playing');
-    
-    this.input.once('pointerdown', () => {
-      this.resumeGame();
-    });
-  }
-
-  private resumeGame() {
-    this.isPaused = false;
-    this.escapePressed = false;
-    this.physics.resume();
-    this.hideOverlay();
-  }
-
-  private quitGame() {
+  /**
+   * Override quitGame for Phase 2 restart behavior
+   */
+  protected quitGame() {
     this.hideOverlay();
     this.showOverlay('🚪 QUITTING...', 'Restarting from Week 1');
-    
+
     this.time.delayedCall(500, () => {
-      // Always restart at week 1 (no progress saving)
-      this.scene.restart({
-        week: 1,
-        score: 0,
-        lives: 3
-      });
+      this.scene.restart({ week: 1, score: 0, lives: 3 });
     });
   }
 
@@ -1064,12 +420,12 @@ export class MainScenePhase2 extends Phaser.Scene {
 
   private schedulePowerUpSpawn() {
     if (this.powerUpSpawned) return;
-    
+
     const delay = Phaser.Math.Between(
       POWERUP_CONFIG.MIN_SPAWN_DELAY,
       POWERUP_CONFIG.MAX_SPAWN_DELAY
     );
-    
+
     this.time.delayedCall(delay, () => {
       this.spawnWeeklyPowerUp();
     });
@@ -1077,39 +433,36 @@ export class MainScenePhase2 extends Phaser.Scene {
 
   private spawnWeeklyPowerUp() {
     if (this.powerUpSpawned) return;
-    
-    const validBlocks = this.blocks.getChildren().filter((b: any) => {
-      const type = this.blockDataMap.get(b.getData('blockId'))?.type;
+
+    const validBlocks = this.blocks.getChildren().filter((blockObj) => {
+      const block = blockObj as PhaserBlock;
+      const type = this.blockDataMap.get(block.getData('blockId'))?.type;
       return POWERUP_CONFIG.AVOID_BOSS_BLOCKS ? type !== 'boss' : true;
     });
-    
+
     if (validBlocks.length === 0) return;
-    
-    const block = Phaser.Math.RND.pick(validBlocks) as any;
+
+    const block = Phaser.Math.RND.pick(validBlocks) as PhaserBlock;
     const powerUp = getRandomPowerUp();
-    
-    // Extract emoji from label (e.g., "☕ Coffee Break" -> "☕")
+
+    // Extract emoji from label
     const emoji = powerUp.label.split(' ')[0];
-    
-    // Create emoji powerup with larger size and glow effect
+
     const icon = this.add.text(block.x, block.y - 30, emoji, {
-      fontSize: '48px',  // Large emoji
+      fontSize: '48px',
       color: '#FFFFFF'
     }).setOrigin(0.5);
-    
-    // Add glow effect with shadow
+
     icon.setStroke('#000000', 4);
     icon.setShadow(0, 0, '#FFD700', 8, true, true);
-    
     icon.setData('powerUpType', powerUp.id);
-    
-    // Create container with physics
-    this.powerUpIcon = this.add.container(block.x, block.y - 30, [icon]);
-    this.physics.add.existing(this.powerUpIcon);
-    const body = this.powerUpIcon.body as Phaser.Physics.Arcade.Body;
+
+    const container = this.add.container(block.x, block.y - 30, [icon]);
+    this.physics.add.existing(container);
+    this.powerUpIcon = container as PowerUpContainer;
+    const body = this.powerUpIcon.body;
     body.setCircle(POWERUP_CONFIG.PICKUP_RADIUS);
-    
-    // Add floating animation
+
     this.tweens.add({
       targets: this.powerUpIcon,
       y: block.y - 30 - POWERUP_CONFIG.FLOAT_AMPLITUDE,
@@ -1118,47 +471,40 @@ export class MainScenePhase2 extends Phaser.Scene {
       repeat: -1,
       ease: 'Sine.easeInOut'
     });
-    
-    // Auto-destroy powerup after lifespan (NO effect given)
+
     this.time.delayedCall(POWERUP_CONFIG.FLOAT_SPEED * 10, () => {
       if (this.powerUpIcon) {
         console.log(`⏱️ Power-up expired (not collected)`);
         this.powerUpIcon.destroy();
         this.powerUpIcon = undefined;
-        // Note: powerUpSpawned stays true (only 1 per week)
       }
     });
-    
+
     this.powerUpSpawned = true;
-    console.log(`⚡ Power-up spawned: ${powerUp.label} (will expire in ${POWERUP_CONFIG.FLOAT_SPEED * 10 / 1000}s)`);
+    console.log(`⚡ Power-up spawned: ${powerUp.label}`);
   }
 
-  private collectPowerUp(_ball: any, powerUpContainer: any) {
+  private collectPowerUp(_ball: PhaserBall, powerUpContainer: PowerUpContainer) {
     if (!this.powerUpIcon) return;
-    
-    // Prevent double-collection
     if (!powerUpContainer.active) return;
-    
+
+    powerUpContainer.setActive(false);
+
     const powerUpType = powerUpContainer.list[0].getData('powerUpType') as PowerUpKind;
     const powerUp = POWERUPS[powerUpType];
-    
+
     console.log(`✨ Collected power-up: ${powerUp.label}`);
-    
-    // Apply effect ONLY when collected by ball
+
     powerUp.apply(this);
-    
-    // Play collection sound
-    sound.paddleHit(); // Use paddle sound for now
-    
-    // Destroy icon
+    sound.paddleHit();
+
     this.powerUpIcon.destroy();
     this.powerUpIcon = undefined;
   }
 
-  // Power-up effects
   public applyCoffee(duration: number) {
     this.showPowerUpStatus('☕ Coffee Active');
-    
+
     this.time.addEvent({
       delay: duration,
       callback: () => {
@@ -1170,12 +516,12 @@ export class MainScenePhase2 extends Phaser.Scene {
   public scalePaddle(scale: number, duration: number) {
     const currentWidth = 120 * this.tuning.paddleScale;
     const newWidth = currentWidth * scale;
-    
+
     this.paddle.setScale(scale, 1);
     (this.paddle.body as Phaser.Physics.Arcade.Body).setSize(newWidth, 18);
-    
+
     this.showPowerUpStatus('🍻 Wide Paddle');
-    
+
     this.time.addEvent({
       delay: duration,
       callback: () => {
@@ -1186,7 +532,7 @@ export class MainScenePhase2 extends Phaser.Scene {
     });
   }
 
-  public grantShield() {
+  public grantShield(_charges: number = 1) {
     this.shieldActive = true;
     this.showPowerUpStatus('🛡️ Shield Active');
   }
@@ -1194,47 +540,60 @@ export class MainScenePhase2 extends Phaser.Scene {
   public clearCurrentHourRow() {
     const firstBall = this.ballPool.getGroup().getFirstAlive();
     if (!firstBall) return;
-    
+
     const ballY = firstBall.y;
-    const blocksToDestroy: any[] = [];
-    
-    this.blocks.getChildren().forEach((block: any) => {
+    const blocksToDestroy: PhaserBlock[] = [];
+
+    this.blocks.getChildren().forEach((blockObj) => {
+      const block = blockObj as PhaserBlock;
       if (Math.abs(block.y - ballY) < 70) {
         blocksToDestroy.push(block);
       }
     });
-    
+
     blocksToDestroy.forEach(block => {
       const blockId = block.getData('blockId');
       const currentHP = this.blockHitPoints.get(blockId) || 1;
-      
+
       block.destroy();
       this.children.getChildren().forEach((child) => {
-        if (child.getData('blockId') === blockId) {
+        const childWithData = child as GameObjectWithData;
+        if (childWithData.getData && childWithData.getData('blockId') === blockId) {
           child.destroy();
         }
       });
-      
+
       this.blockHitPoints.delete(blockId);
-      this.score += currentHP * 10;
+      this.score += currentHP * SCORING.POINTS_PER_DESTROY;
     });
-    
+
     this.updateScore();
     sound.blockDestroyed();
     console.log(`📅 Cleared ${blocksToDestroy.length} meetings from hour row`);
   }
 
-  public convertRandomBlocks(count: number) {
+  public convertRandomBlocks(count: number, meetingType: string = 'lunch') {
     const blocks = Phaser.Math.RND.shuffle(this.blocks.getChildren())
-      .slice(0, count);
-    
-    blocks.forEach((block: any) => {
+      .slice(0, count) as PhaserBlock[];
+
+    // Use theme colors for consistency
+    const typeConfig: Record<string, { color: number; hp: number }> = {
+      lunch: { color: this.getColorForMeetingType('lunch'), hp: 1 },
+      personal: { color: this.getColorForMeetingType('personal'), hp: 1 },
+      '1:1': { color: this.getColorForMeetingType('1:1'), hp: 2 },
+      team: { color: this.getColorForMeetingType('team'), hp: 2 },
+      boss: { color: this.getColorForMeetingType('boss'), hp: 3 }
+    };
+
+    const config = typeConfig[meetingType] || typeConfig.lunch;
+
+    blocks.forEach((block) => {
       const blockId = block.getData('blockId');
-      this.blockHitPoints.set(blockId, 1);
-      block.setFillStyle(0xfbc02d, 0.85); // Yellow for lunch
+      this.blockHitPoints.set(blockId, config.hp);
+      block.setFillStyle(config.color, 0.85);
     });
-    
-    console.log(`🧹 Converted ${blocks.length} meetings to lunch breaks`);
+
+    console.log(`🧹 Converted ${blocks.length} meetings to ${meetingType} breaks`);
   }
 
   private showPowerUpStatus(text: string) {
@@ -1257,7 +616,7 @@ export class MainScenePhase2 extends Phaser.Scene {
       stroke: '#FFFFFF',
       strokeThickness: 4
     }).setOrigin(0.5).setDepth(2000);
-    
+
     this.tweens.add({
       targets: shieldText,
       alpha: 0,
@@ -1265,8 +624,23 @@ export class MainScenePhase2 extends Phaser.Scene {
       duration: 1000,
       onComplete: () => shieldText.destroy()
     });
-    
+
     this.hidePowerUpStatus();
+  }
+
+  /**
+   * Scene cleanup
+   */
+  shutdown() {
+    if (this.handlePointerLockChange) {
+      document.removeEventListener('pointerlockchange', this.handlePointerLockChange);
+      this.handlePointerLockChange = undefined;
+    }
+
+    this.ballPositionHistory.clear();
+    this.ballCorrectionCooldown.clear();
+
+    console.log('🧹 MainScenePhase2 cleanup completed');
   }
 }
 

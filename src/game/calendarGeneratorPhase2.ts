@@ -35,10 +35,10 @@ export function generateWeek(week: number): Meeting[] {
     return generateWeek1Onboarding();
   } else if (week === 2) {
     return generateWeek2Basics();
-  } else if (week >= 3 && week <= 12) {
-    return generateWeeks3to12Progressive(week);
+  } else if (week >= 3 && week <= 20) {
+    return generateWeeks3to20Progressive(week);
   } else {
-    return generateWeeks13PlusCurve(week);
+    return generateWeeks21PlusCurve(week);
   }
 }
 
@@ -117,21 +117,21 @@ function generateWeek2Basics(): Meeting[] {
 }
 
 /**
- * WEEKS 3-12: Progressive difficulty (First 90 days)
+ * WEEKS 3-20: Progressive difficulty (First ~5 months)
  * Gradually introduce more meetings, Boss meetings, shorter durations
- * By week 12, should be chaotic with lots of overlaps
+ * By week 20, should be chaotic with lots of overlaps
  */
-function generateWeeks3to12Progressive(week: number): Meeting[] {
+function generateWeeks3to20Progressive(week: number): Meeting[] {
   const meetings: Meeting[] = [];
   const rand = mulberry32(0xB0B0 + week);
   
-  // Progressive parameters (linear interpolation from week 3 to 12)
-  const progress = (week - 3) / 9; // 0.0 at week 3, 1.0 at week 12
-  
-  // Meeting count: 10 (week 3) → 40 (week 12)
+  // Progressive parameters (linear interpolation from week 3 to 20)
+  const progress = (week - 3) / 17; // 0.0 at week 3, 1.0 at week 20
+
+  // Meeting count: 10 (week 3) → 40 (week 20)
   const meetingCount = Math.round(10 + progress * 30);
-  
-  // Boss meeting rate: 0% (week 3) → 10% (week 12)
+
+  // Boss meeting rate: 0% (week 3) → 10% (week 20)
   const bossRate = progress * 0.10;
   
   // Team meeting rate: 20% → 30%
@@ -140,7 +140,7 @@ function generateWeeks3to12Progressive(week: number): Meeting[] {
   // Lunch rate: 20% → 15%
   const lunchRate = 0.20 - progress * 0.05;
   
-  // Min duration: 60 min (week 3) → 30 min (week 12)
+  // Min duration: 60 min (week 3) → 30 min (week 20)
   const minDuration = Math.round(60 - progress * 30);
   
   const typeTitles: Record<MeetingType, string[]> = {
@@ -214,10 +214,10 @@ function generateWeeks3to12Progressive(week: number): Meeting[] {
 }
 
 /**
- * WEEKS 13+: Follow original difficulty curve
+ * WEEKS 21+: Follow original difficulty curve
  * Use the tuning system for precise control
  */
-function generateWeeks13PlusCurve(week: number): Meeting[] {
+function generateWeeks21PlusCurve(week: number): Meeting[] {
   const meetings: Meeting[] = [];
   const rand = mulberry32(0xB0B0 + week);
   const t = curve(week);

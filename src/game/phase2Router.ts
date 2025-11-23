@@ -22,10 +22,19 @@ export const getSceneForWeek = (week: number): string => {
 };
 
 /**
+ * Additional data to pass to scene initialization
+ */
+interface AdditionalSceneData {
+  score?: number;
+  lives?: number;
+  fromWeekendBonus?: boolean;
+}
+
+/**
  * Start the appropriate scene for a given week
  * Handles routing between calendar and weekend bonus stages
  */
-export function startWeek(scene: Phaser.Scene, week: number, additionalData: any = {}) {
+export function startWeek(scene: Phaser.Scene, week: number, additionalData: AdditionalSceneData = {}) {
   if (isBonusWeek(week)) {
     // Weekend Bonus Stage
     console.log(`🌴 Week ${week} - WEEKEND BONUS STAGE!`);

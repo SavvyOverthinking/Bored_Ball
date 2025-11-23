@@ -2,7 +2,7 @@
 
 ## Overview
 
-The Phase 2 calendar system now follows a carefully designed progression from **gentle tutorial** (Week 1) through **progressive ramp-up** (Weeks 2-12) to **full chaos** (Weeks 13-52).
+The Phase 2 calendar system now follows a carefully designed progression from **gentle tutorial** (Week 1) through **progressive ramp-up** (Weeks 2-20) to **full chaos** (Weeks 21-52).
 
 ---
 
@@ -71,7 +71,7 @@ Lunch Lunch Lunch Lunch Lunch
 
 ---
 
-### 📙 **WEEKS 3-12: Progressive Ramp-Up** (First 90 Days)
+### 📙 **WEEKS 3-20: Progressive Ramp-Up** (First ~5 months)
 
 **Purpose:** Gradually increase complexity to prepare for full difficulty
 
@@ -79,15 +79,23 @@ Lunch Lunch Lunch Lunch Lunch
 | Week | Meetings | Boss Rate | Min Duration | Overlaps |
 |------|----------|-----------|--------------|----------|
 | 3    | 10       | 0%        | 60 min       | None     |
-| 4    | 13       | 1%        | 57 min       | None     |
-| 5    | 17       | 2%        | 54 min       | None     |
-| 6    | 20       | 3%        | 51 min       | 0.6      |
-| 7    | 23       | 4%        | 48 min       | 1.2      |
-| 8    | 27       | 6%        | 45 min       | 1.8      |
-| 9    | 30       | 7%        | 42 min       | 2.4      |
-| 10   | 33       | 8%        | 39 min       | 3.0      |
-| 11   | 37       | 9%        | 36 min       | 3.6      |
-| 12   | 40       | 10%       | 30 min       | 4.2      |
+| 4    | 12       | 1%        | 58 min       | None     |
+| 5    | 14       | 1%        | 56 min       | None     |
+| 6    | 15       | 2%        | 54 min       | 0.6      |
+| 7    | 17       | 2%        | 53 min       | 1.2      |
+| 8    | 19       | 3%        | 51 min       | 1.8      |
+| 9    | 21       | 4%        | 49 min       | 2.4      |
+| 10   | 22       | 4%        | 47 min       | 3.0      |
+| 11   | 24       | 5%        | 45 min       | 3.6      |
+| 12   | 26       | 5%        | 43 min       | 4.2      |
+| 13   | 28       | 6%        | 41 min       | 4.8      |
+| 14   | 29       | 6%        | 40 min       | 5.4      |
+| 15   | 31       | 7%        | 38 min       | 6.0      |
+| 16   | 33       | 8%        | 36 min       | 6.6      |
+| 17   | 35       | 8%        | 34 min       | 7.2      |
+| 18   | 36       | 9%        | 32 min       | 7.8      |
+| 19   | 38       | 9%        | 31 min       | 8.4      |
+| 20   | 40       | 10%       | 30 min       | 9.0      |
 
 **Meeting Type Distribution:**
 - **Boss:** 0% → 10% (gradually introduced)
@@ -100,8 +108,9 @@ Lunch Lunch Lunch Lunch Lunch
 - **Week 3:** First "real" week, 10 varied meetings
 - **Week 4:** Boss meetings introduced (1% chance, very rare)
 - **Week 6:** First overlaps appear (intentional double-bookings)
-- **Week 9:** Calendar starts feeling crowded (~30 meetings)
-- **Week 12:** Chaotic mess (~40 meetings, many overlaps)
+- **Week 12:** Calendar starts feeling crowded (~26 meetings)
+- **Week 16:** High complexity with ~33 meetings and 8% Boss rate
+- **Week 20:** Chaotic mess (~40 meetings, many overlaps, 10% Boss rate)
 
 **Expected Player Experience:**
 - Gradual learning curve
@@ -111,19 +120,19 @@ Lunch Lunch Lunch Lunch Lunch
 
 ---
 
-### 📕 **WEEKS 13-52: Full Difficulty Curve**
+### 📕 **WEEKS 21-52: Full Difficulty Curve**
 
 **Purpose:** Challenge experienced players with full complexity
 
 **Follows `levelCurve.ts` System:**
 
-**Week 13:**
-- ~45% density (~28 meetings)
-- 5% Boss rate
-- 11% Team rate
-- 18% Lunch rate
-- Paddle: 1.1× scale
-- Ball speed: 232 px/s
+**Week 21:**
+- ~35% density (starting point after progressive ramp)
+- 4% Boss rate
+- 10% Team rate
+- 20% Lunch rate
+- Paddle: 1.2× scale
+- Ball speed: 220 px/s
 
 **Week 26 (Mid-year):**
 - ~62% density (~40 meetings)
@@ -143,7 +152,7 @@ Lunch Lunch Lunch Lunch Lunch
 - **Max 4 balls** (chaotic multi-ball)
 
 **Expected Player Experience:**
-- Weeks 13-30: Challenging but manageable
+- Weeks 21-30: Challenging but manageable
 - Weeks 31-45: Hard, requires skill
 - Weeks 46-52: Brutal endgame
 
@@ -151,7 +160,7 @@ Lunch Lunch Lunch Lunch Lunch
 
 ## Visual Comparison
 
-### Week 1 vs Week 12 vs Week 52
+### Week 1 vs Week 20 vs Week 52
 
 **Week 1 (Onboarding):**
 ```
@@ -169,7 +178,7 @@ Mon       Tue       Wed       Thu       Fri
 
 ---
 
-**Week 12 (Chaos Begins):**
+**Week 20 (Progressive Peak):**
 ```
 Mon       Tue       Wed       Thu       Fri
 9 AM    [Team]    [1:1]│[Boss] [Team]    [1:1]
@@ -179,7 +188,7 @@ Mon       Tue       Wed       Thu       Fri
 1 PM    [1:1]│[Boss][Meet] [Team] [Meet]    [1:1]
 ...
 ```
-**~40 blocks, many overlaps (│), Boss meetings common**
+**~40 blocks, many overlaps (│), Boss meetings common (10% rate)**
 
 ---
 
@@ -261,11 +270,21 @@ http://localhost:3003/Bored_Ball/?week=6
 ```
 http://localhost:3003/Bored_Ball/?week=12
 ```
+- [ ] ~26 meetings (getting crowded)
+- [ ] Some overlaps (side-by-side blocks)
+- [ ] 1-2 Boss meetings visible (5% rate)
+- [ ] 43-minute minimum blocks
+- [ ] Week display shows "Week: 12 / 52"
+
+### ✅ **Week 20 Verification**
+```
+http://localhost:3003/Bored_Ball/?week=20
+```
 - [ ] ~40 meetings (very crowded)
 - [ ] Many overlaps (side-by-side blocks)
-- [ ] 4-5 Boss meetings visible
+- [ ] 4-5 Boss meetings visible (10% rate)
 - [ ] Small 30-minute blocks
-- [ ] Week display shows "Week: 12 / 52"
+- [ ] Week display shows "Week: 20 / 52"
 
 ### ✅ **Week 52 Verification**
 ```
@@ -315,9 +334,18 @@ http://localhost:3003/Bored_Ball/?week=52
 **Week 12 Load:**
 ```
 🗓️ Generating calendar for Week 12...
-✅ Week 12 (Progressive): 40 meetings, 10% boss rate
-✨ Phase 2: Generated 44 meetings for week 12
-📊 Render stats: 44 blocks (including 8 in double-bookings)
+✅ Week 12 (Progressive): 26 meetings, 5% boss rate
+✨ Phase 2: Generated ~30 meetings for week 12
+📊 Render stats: ~30 blocks (including ~4 in double-bookings)
+🎨 Meeting types: Boss=1, Team=8, Lunch=5
+```
+
+**Week 20 Load:**
+```
+🗓️ Generating calendar for Week 20...
+✅ Week 20 (Progressive): 40 meetings, 10% boss rate
+✨ Phase 2: Generated ~49 meetings for week 20
+📊 Render stats: ~49 blocks (including ~9 in double-bookings)
 🎨 Meeting types: Boss=4, Team=12, Lunch=6
 ```
 
@@ -331,8 +359,8 @@ http://localhost:3003/Bored_Ball/?week=52
 1. `generateWeek(week)` - Main entry point, routes to specific week generator
 2. `generateWeek1Onboarding()` - Creates 10 grey blocks
 3. `generateWeek2Basics()` - Creates 8 blocks (2 of each type)
-4. `generateWeeks3to12Progressive(week)` - Progressive difficulty
-5. `generateWeeks13PlusCurve(week)` - Uses `curve()` system
+4. `generateWeeks3to20Progressive(week)` - Progressive difficulty over 18 weeks
+5. `generateWeeks21PlusCurve(week)` - Uses `curve()` system
 6. `computeColumns(meetings)` - Handles double-booking layout
 
 ### Modified Files:
@@ -344,16 +372,16 @@ http://localhost:3003/Bored_Ball/?week=52
 
 ## Success Criteria
 
-✅ **Week 1:** Player learns basics safely  
-✅ **Week 2:** Player sees variety, no Boss yet  
-✅ **Weeks 3-12:** Smooth learning curve  
-✅ **Weeks 13+:** Full challenge  
-✅ **No bugs:** Calendar always generates correctly  
+✅ **Week 1:** Player learns basics safely
+✅ **Week 2:** Player sees variety, no Boss yet
+✅ **Weeks 3-20:** Smooth learning curve over 20 weeks
+✅ **Weeks 21+:** Full challenge
+✅ **No bugs:** Calendar always generates correctly
 ✅ **No saved progress:** Always starts Week 1
 
 ---
 
-**Last Updated:** 2025-10-12  
-**Commit:** 66decb0 - "Complete overhaul of week progression system"  
-**Status:** ✅ COMPLETE
+**Last Updated:** 2025-10-25
+**Commit:** Extended progressive period from 12 to 20 weeks
+**Status:** ✅ UPDATED - 20-week progression system
 

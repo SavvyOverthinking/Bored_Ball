@@ -17,14 +17,15 @@ export type LevelTuning = {
 
 /**
  * Calculate level tuning for a given week
- * Weeks 1-5: Gentle introduction with larger paddle, slower speed
- * Weeks 6-52: Progressive difficulty increase
+ * Weeks 1-2: Gentle introduction with larger paddle, slower speed (handled by special generators)
+ * Weeks 3-20: Progressive ramp-up (handled by generateWeeks3to20Progressive)
+ * Weeks 21-52: Progressive difficulty increase (used by this curve function)
  */
 export const curve = (week: number): LevelTuning => {
   const w = Math.max(1, Math.min(52, week));
-  
-  // Weeks 1-5: Gentle early game
-  if (w <= 5) {
+
+  // Weeks 1-20: Early progressive period (this tuning is mainly for reference)
+  if (w <= 20) {
     return {
       week: w,
       density: 0.35,           // 35% calendar filled (lots of breathing room)
@@ -38,8 +39,8 @@ export const curve = (week: number): LevelTuning => {
     };
   }
   
-  // Weeks 6-52: Progressive difficulty
-  const t = (w - 5) / 47; // Interpolation factor 0 to 1
+  // Weeks 21-52: Progressive difficulty curve
+  const t = (w - 20) / 32; // Interpolation factor 0 to 1 (from week 21 to 52)
   
   return {
     week: w,
@@ -58,9 +59,10 @@ export const curve = (week: number): LevelTuning => {
  * Get a formatted description of the current difficulty
  */
 export const describeDifficulty = (week: number): string => {
-  if (week <= 5) return 'Onboarding Week - Easy Mode';
-  if (week <= 15) return 'Early Career - Manageable';
-  if (week <= 30) return 'Mid-Year Crunch - Challenging';
+  if (week <= 2) return 'Onboarding Week - Easy Mode';
+  if (week <= 10) return 'Early Career - Learning';
+  if (week <= 20) return 'Progressive Ramp - Manageable';
+  if (week <= 35) return 'Mid-Year Crunch - Challenging';
   if (week <= 45) return 'Year-End Chaos - Hard';
   return 'Burnout Season - Brutal';
 };

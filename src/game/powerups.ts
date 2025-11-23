@@ -4,6 +4,8 @@
  * Maximum ONE power-up per week
  */
 
+import type { PowerUpScene } from './types';
+
 export type PowerUpKind = 'coffee' | 'happyHour' | 'dnd' | 'reschedule' | 'cleanup';
 
 export interface PowerUpDefinition {
@@ -12,7 +14,7 @@ export interface PowerUpDefinition {
   label: string;          // Display name
   description: string;    // Tooltip/help text
   color: number;          // Tint color
-  apply: (scene: any) => void;  // Effect function
+  apply: (scene: PowerUpScene) => void;  // Effect function
 }
 
 /**

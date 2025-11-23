@@ -7,6 +7,7 @@
 import Phaser from 'phaser';
 import { getBoardDimensions } from './calendarGenerator';
 import { sound } from './soundEffects';
+import { WEEKEND_STAGE } from './constants';
 
 interface WeekendStageData {
   week: number;
@@ -17,8 +18,8 @@ interface WeekendStageData {
 export default class WeekendStageScene extends Phaser.Scene {
   private paddle!: Phaser.Physics.Arcade.Image;
   private emails!: Phaser.Physics.Arcade.Group;
-  
-  private timerMs: number = 30000; // 30 seconds
+
+  private timerMs: number = WEEKEND_STAGE.DURATION_MS; // 30 seconds
   private alive: boolean = true;
   private startTime: number = 0;
   
@@ -89,9 +90,10 @@ export default class WeekendStageScene extends Phaser.Scene {
 
   update() {
     const { height } = getBoardDimensions();
-    
+
     // Clean up emails that have fallen off the bottom of the screen
-    this.emails.getChildren().forEach((email: any) => {
+    this.emails.getChildren().forEach((emailObj) => {
+      const email = emailObj as Phaser.GameObjects.Sprite;
       if (email.active && email.y > height + 50) {
         email.destroy();
       }
@@ -232,8 +234,8 @@ export default class WeekendStageScene extends Phaser.Scene {
           break;
         // 'line' - no horizontal movement
       }
-      
-      this.emailsSpawned++;
+
+      // NOTE: emailsSpawned is incremented in createEmailSprite(), not here
     });
   }
 
@@ -306,7 +308,7 @@ export default class WeekendStageScene extends Phaser.Scene {
     
     // Calculate bonus
     const dodged = this.emailsSpawned - this.emailsTouched;
-    const bonus = 500 + dodged * 10;
+    const bonus = WEEKEND_STAGE.BONUS_POINTS_BASE + dodged * WEEKEND_STAGE.BONUS_POINTS_PER_EMAIL;
     
     // Flash green
     this.cameras.main.flash(500, 0, 255, 0);

@@ -33,6 +33,35 @@ export const GAME = {
 };
 
 /**
+ * Scoring system constants
+ */
+export const SCORING = {
+  POINTS_PER_HIT: 5,        // Points awarded for each block hit
+  POINTS_PER_DESTROY: 10,   // Multiplier for destroyed block (currentHP * 10)
+};
+
+/**
+ * Ball stuck detection thresholds
+ * Used to detect and correct balls trapped in horizontal loops
+ */
+export const STUCK_DETECTION = {
+  MIN_VERTICAL_VELOCITY: 60,        // Minimum abs(velocityY) before considering stuck
+  POSITION_VARIANCE_THRESHOLD: 300, // Y-position variance threshold for stuck detection
+  HISTORY_LENGTH: 90,               // Number of frames to track (1.5 seconds at 60fps)
+  CORRECTION_COOLDOWN_MS: 1000,     // Minimum time between corrections (ms)
+  CHECK_INTERVAL: 10,               // Check every N frames for performance
+};
+
+/**
+ * Weekend stage constants
+ */
+export const WEEKEND_STAGE = {
+  DURATION_MS: 30000,              // 30 seconds survival challenge
+  BONUS_POINTS_BASE: 500,          // Base points for completion
+  BONUS_POINTS_PER_EMAIL: 10,      // Points per dodged email
+};
+
+/**
  * Clamp velocity to prevent runaway physics
  */
 export function clampVelocity(v: Phaser.Math.Vector2): Phaser.Math.Vector2 {
