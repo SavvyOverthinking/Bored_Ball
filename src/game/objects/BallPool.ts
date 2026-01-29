@@ -4,8 +4,8 @@
  */
 
 import Phaser from 'phaser';
-import { PHYSICS, CANVAS } from './constants';
-import type { PhaserBall } from './types';
+import { PHYSICS, CANVAS } from '@config/constants';
+import type { PhaserBall } from '@/types/game';
 
 export class BallPool {
   private group: Phaser.Physics.Arcade.Group;

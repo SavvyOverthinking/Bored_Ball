@@ -1,55 +1,7 @@
-/**
- * Calendar Breakout Component
- * React wrapper for Phaser game
- */
-
-import { useEffect, useRef } from 'react';
-import Phaser from 'phaser';
-import { MainScene } from '../game/MainScene';
-import { getBoardDimensions } from '../game/calendarGenerator';
+import { PhaserGameContainer } from './PhaserGameContainer';
+import { MainScene } from '@game/scenes/MainScene';
 
 export function CalendarBreakout() {
-  const gameRef = useRef<HTMLDivElement>(null);
-  const phaserGameRef = useRef<Phaser.Game | null>(null);
-
-  useEffect(() => {
-    if (!gameRef.current) return;
-
-    const { width, height } = getBoardDimensions();
-
-    // Phaser game configuration
-    const config: Phaser.Types.Core.GameConfig = {
-      type: Phaser.AUTO,
-      width,
-      height,
-      parent: gameRef.current,
-      physics: {
-        default: 'arcade',
-        arcade: {
-          gravity: { x: 0, y: 0 },
-          debug: false,
-        },
-      },
-      scene: [MainScene],
-      backgroundColor: '#fafbfc',
-      scale: {
-        mode: Phaser.Scale.FIT,
-        autoCenter: Phaser.Scale.CENTER_BOTH,
-      },
-    };
-
-    // Create game instance
-    phaserGameRef.current = new Phaser.Game(config);
-
-    // Cleanup on unmount
-    return () => {
-      if (phaserGameRef.current) {
-        phaserGameRef.current.destroy(true);
-        phaserGameRef.current = null;
-      }
-    };
-  }, []);
-
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-4">
       <div className="mb-6 text-center">
@@ -61,11 +13,7 @@ export function CalendarBreakout() {
         </p>
       </div>
 
-      <div 
-        ref={gameRef} 
-        className="shadow-2xl rounded-lg overflow-hidden bg-white border border-gray-200"
-        style={{ maxWidth: '900px', width: '100%' }}
-      />
+      <PhaserGameContainer scenes={[MainScene]} />
 
       <div className="mt-6 bg-white rounded-lg shadow-lg p-6 max-w-2xl border border-gray-200">
         <h2 className="text-xl font-semibold text-gray-800 mb-3" style={{ fontFamily: 'Segoe UI, sans-serif' }}>

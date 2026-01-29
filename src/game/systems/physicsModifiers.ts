@@ -1,12 +1,8 @@
-/**
- * Physics modifiers for different meeting types
- * Each meeting type has a unique effect on the ball's behavior
- */
-
 import Phaser from 'phaser';
-import type { PhaserBall, PowerUpScene } from './types';
+import type { PhaserBall, PowerUpScene } from '@/types/game';
 
-export type MeetingType = '1:1' | 'team' | 'boss' | 'lunch' | 'personal';
+// Add 'sticky' to MeetingType
+export type MeetingType = '1:1' | 'team' | 'boss' | 'lunch' | 'personal' | 'sticky';
 
 export interface PhysicsEffect {
   type: MeetingType;
@@ -15,36 +11,22 @@ export interface PhysicsEffect {
   apply: (ball: PhaserBall, scene: Phaser.Scene) => void;
 }
 
-/**
- * Base ball speed for normalization
- */
 const BASE_SPEED = 300;
 
-/**
- * Apply speed modification while preserving direction
- * Uses ratio-based calculation for efficiency (faster than angle-based)
- */
 function modifySpeed(ball: PhaserBall, multiplier: number) {
   const body = ball.body;
   if (!body) return;
 
-  const velocity = body.velocity;
-  // Calculate current speed using optimized method (avoid multiple property lookups)
-  const vx = velocity.x;
-  const vy = velocity.y;
+  const vx = body.velocity.x;
+  const vy = body.velocity.y;
   const currentSpeed = Math.sqrt(vx * vx + vy * vy);
 
   if (currentSpeed === 0) return;
 
-  // Apply speed change using ratio (preserves direction efficiently)
   const ratio = (BASE_SPEED * multiplier) / currentSpeed;
   body.setVelocity(vx * ratio, vy * ratio);
 }
 
-/**
- * Create additional balls (split effect)
- * Optimized to calculate angle and speed once
- */
 function splitBall(ball: PhaserBall, scene: Phaser.Scene): void {
   const MainScene = scene as PowerUpScene;
 
@@ -53,14 +35,12 @@ function splitBall(ball: PhaserBall, scene: Phaser.Scene): void {
   const body = ball.body;
   if (!body) return;
 
-  // Calculate angle and speed once (optimization)
   const vx = body.velocity.x;
   const vy = body.velocity.y;
   const currentAngle = Math.atan2(vy, vx);
   const speed = Math.sqrt(vx * vx + vy * vy);
 
-  // Create two extra balls at slight angle offsets
-  const angleOffsets = [-15 * Math.PI / 180, 15 * Math.PI / 180]; // Pre-convert to radians
+  const angleOffsets = [-15 * Math.PI / 180, 15 * Math.PI / 180];
 
   angleOffsets.forEach(offsetRad => {
     const newAngle = currentAngle + offsetRad;
@@ -74,9 +54,39 @@ function splitBall(ball: PhaserBall, scene: Phaser.Scene): void {
   });
 }
 
-/**
- * Physics effects for each meeting type
- */
+// --- NEW: Sticky ball effect ---
+function applyStickyEffect(ball: PhaserBall, scene: Phaser.Scene): void {
+  const body = ball.body as Phaser.Physics.Arcade.Body;
+  if (!body) return;
+
+  // Store original velocity to restore after being unstuck
+  const originalVelocityX = body.velocity.x;
+  const originalVelocityY = body.velocity.y;
+
+  // Stop the ball
+  body.setVelocity(0, 0);
+  body.setImmovable(true); // Make the ball immovable
+  body.setCollideWorldBounds(false); // Temporarily disable world bounds collision
+
+  // After a short delay, unstick the ball and give it a nudge
+  scene.time.delayedCall(500, () => {
+    if (ball.active && body) { // Check if ball still exists
+      body.setImmovable(false);
+      body.setCollideWorldBounds(true); // Re-enable world bounds collision
+
+      // Give it a small push in a slightly random direction
+      const nudgeAngle = Phaser.Math.Between(-30, 30) * Math.PI / 180;
+      const nudgeSpeed = BASE_SPEED * 0.7; // Start slower
+      
+      body.setVelocity(
+        Math.cos(nudgeAngle) * nudgeSpeed * (originalVelocityX > 0 ? 1 : -1), // Retain general horizontal direction
+        Math.sin(nudgeAngle) * nudgeSpeed * (originalVelocityY > 0 ? 1 : -1) // Retain general vertical direction
+      );
+    }
+  });
+}
+// --- END NEW ---
+
 export const PHYSICS_EFFECTS: Record<MeetingType, PhysicsEffect> = {
   '1:1': {
     type: '1:1',
@@ -119,15 +129,11 @@ export const PHYSICS_EFFECTS: Record<MeetingType, PhysicsEffect> = {
     description: 'Reset bounce',
     color: '#8e24aa',
     apply: (ball: PhaserBall) => {
-      // Stabilize ball direction and speed
       const body = ball.body;
       if (!body) return;
 
-      // Optimize: cache velocity components to avoid multiple property access
       const vx = body.velocity.x;
       const vy = body.velocity.y;
-
-      // Normalize to base speed (using angle-based approach for personal meetings)
       const currentAngle = Math.atan2(vy, vx);
 
       body.setVelocity(
@@ -135,12 +141,19 @@ export const PHYSICS_EFFECTS: Record<MeetingType, PhysicsEffect> = {
         Math.sin(currentAngle) * BASE_SPEED
       );
     }
+  },
+  // --- NEW: Sticky Meeting Type ---
+  'sticky': {
+    type: 'sticky',
+    description: 'Ball sticks for 0.5s',
+    color: '#9E9E9E', // Grey color for sticky
+    apply: (ball: PhaserBall, scene: Phaser.Scene) => {
+      applyStickyEffect(ball, scene);
+    }
   }
+  // --- END NEW ---
 };
 
-/**
- * Apply physics effect based on meeting type
- */
 export function applyMeetingEffect(
   meetingType: MeetingType,
   ball: PhaserBall,
@@ -151,5 +164,3 @@ export function applyMeetingEffect(
     effect.apply(ball, scene);
   }
 }
-
-

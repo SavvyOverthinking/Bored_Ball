@@ -42,12 +42,16 @@ npm run preview          # Port 4173
 ```
 
 ### Deployment (GitHub Pages)
-**This project uses PRE-BUILT deployment** to avoid CI issues:
+**Automatic CI/CD:** Push to `main` triggers GitHub Actions to build and deploy.
 ```bash
-npm run build                          # Build locally
-git add -A && git commit -m "deploy"   # Commit dist/ folder (NOT in .gitignore)
-git push origin main                   # Push - GitHub Actions deploys pre-built dist/
+git push origin main    # GitHub Actions builds and deploys automatically
 ```
+**Workflow:** `.github/workflows/ci-deploy.yml` handles:
+1. Type checking (`npm run typecheck`)
+2. Linting (`npm run lint`)
+3. Tests (`npm run test:run`)
+4. Build Phase 2 (`VITE_PHASE2=1 npm run build`)
+5. Deploy to GitHub Pages
 
 ### Testing Specific Weeks
 Add URL parameter to test progression:

@@ -3,11 +3,11 @@
  * Now extends BaseCalendarScene to eliminate code duplication
  */
 
-import { generateCalendarBlocks, type BlockData } from './calendarGenerator';
-import { type MeetingType } from './physicsModifiers';
-import { PHYSICS } from './constants';
-import calendarData from '../data/mockCalendar.json';
-import type { PhaserBlock } from './types';
+import { generateCalendarBlocks, type BlockData } from '@game/utils/calendarGenerator';
+import { type MeetingType } from '@game/systems/physicsModifiers';
+import { PHYSICS } from '@config/constants';
+import calendarData from '@data/mockCalendar.json';
+import type { PhaserBlock } from '@/types/game';
 import { BaseCalendarScene } from './BaseCalendarScene';
 
 export class MainScene extends BaseCalendarScene {

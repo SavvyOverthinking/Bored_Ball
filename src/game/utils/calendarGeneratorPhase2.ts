@@ -3,9 +3,9 @@
  * Progressive difficulty system with special onboarding
  */
 
-import { curve } from './levelCurve';
-import { mulberry32 } from './rng';
-import type { MeetingType } from './physicsModifiers';
+import { curve } from '@game/utils/levelCurve';
+import { mulberry32 } from '@game/utils/rng';
+import type { MeetingType } from '@game/systems/physicsModifiers';
 
 export interface Meeting {
   day: number;              // 0..4 (Mon-Fri)
@@ -89,7 +89,8 @@ function generateWeek2Basics(): Meeting[] {
     '1:1': ['1:1 Check-in', 'Weekly 1:1'],
     'lunch': ['Lunch Break', 'Lunch & Learn'],
     'personal': ['Focus Time', 'Personal Time'],
-    'boss': [] // Not used in week 2
+    'boss': [], // Not used in week 2
+    'sticky': [] // NEW
   };
   
   // Add 2 of each type (2×4 = 8 meetings total)
@@ -139,6 +140,9 @@ function generateWeeks3to20Progressive(week: number): Meeting[] {
   
   // Lunch rate: 20% → 15%
   const lunchRate = 0.20 - progress * 0.05;
+
+  // NEW: Sticky rate - 0% (week 3) -> 5% (week 20)
+  const stickyRate = progress * 0.05;
   
   // Min duration: 60 min (week 3) → 30 min (week 20)
   const minDuration = Math.round(60 - progress * 30);
@@ -148,7 +152,8 @@ function generateWeeks3to20Progressive(week: number): Meeting[] {
     'team': ['Team Standup', 'Sprint Planning', 'Team Retro', 'All Hands'],
     '1:1': ['1:1 Sync', 'Weekly Check-in', 'Project Update', 'Coffee Chat'],
     'lunch': ['Lunch Break', 'Team Lunch', 'Lunch & Learn'],
-    'personal': ['Focus Time', 'Personal', 'Deep Work', 'Study Time']
+    'personal': ['Focus Time', 'Personal', 'Deep Work', 'Study Time'],
+    'sticky': ['Sticky Note', 'Important Reminder', 'Long Discussion'] // NEW
   };
   
   const pickType = (): MeetingType => {
@@ -156,8 +161,9 @@ function generateWeeks3to20Progressive(week: number): Meeting[] {
     if (r < bossRate) return 'boss';
     if (r < bossRate + teamRate) return 'team';
     if (r < bossRate + teamRate + lunchRate) return 'lunch';
-    if (r < bossRate + teamRate + lunchRate + 0.25) return '1:1';
-    return 'personal';
+    if (r < bossRate + teamRate + lunchRate + stickyRate) return 'sticky'; // NEW
+    if (r < bossRate + teamRate + lunchRate + stickyRate + 0.20) return '1:1'; // Adjusted probability
+    return 'personal'; // Adjusted probability
   };
   
   const pickDuration = (): number => {
@@ -231,7 +237,8 @@ function generateWeeks21PlusCurve(week: number): Meeting[] {
     'team': ['Team Standup', 'Sprint Planning', 'Team Sync', 'All Hands', 'Retro'],
     '1:1': ['1:1 Sync', 'Weekly Check-in', 'Project Update', 'Coffee Chat'],
     'lunch': ['Lunch Break', 'Team Lunch', 'Lunch & Learn'],
-    'personal': ['Focus Time', 'Personal', 'Deep Work', 'OOO']
+    'personal': ['Focus Time', 'Personal', 'Deep Work', 'OOO'],
+    'sticky': ['Sticky Note', 'Important Reminder', 'Long Discussion', 'Decision Block'] // NEW
   };
   
   const pickDuration = (): number => {
@@ -246,6 +253,8 @@ function generateWeeks21PlusCurve(week: number): Meeting[] {
     if (r < t.bossRate + t.teamRate + t.lunchRate) {
       return rand() < 0.5 ? 'lunch' : 'personal';
     }
+    // NEW: Introduce sticky blocks in later weeks
+    if (r < t.bossRate + t.teamRate + t.lunchRate + 0.05) return 'sticky'; // 5% chance
     return '1:1';
   };
   

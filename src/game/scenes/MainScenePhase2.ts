@@ -4,15 +4,16 @@
  * Now extends BaseCalendarScene to eliminate code duplication
  */
 
-import { getCalendarGridConfig, getBoardDimensions } from './calendarGenerator';
-import { type MeetingType } from './physicsModifiers';
-import { PHYSICS, SCORING } from './constants';
-import { sound } from './soundEffects';
-import type { LevelTuning } from './levelCurve';
-import { startWeek } from './phase2Router';
-import { POWERUPS, POWERUP_CONFIG, getRandomPowerUp, type PowerUpKind } from './powerups';
-import { generateWeek, computeColumns, type Meeting } from './calendarGeneratorPhase2';
-import type { PhaserBall, PhaserBlock, GameObjectWithData, PowerUpContainer } from './types';
+import { getCalendarGridConfig, getBoardDimensions } from '@game/utils/calendarGenerator';
+import { type MeetingType } from '@game/systems/physicsModifiers';
+import { PHYSICS, SCORING } from '@config/constants';
+import { sound } from '@game/systems/soundEffects';
+import { gameEventBus } from '@game/systems/GameEventBus';
+import type { LevelTuning } from '@game/utils/levelCurve';
+import { startWeek } from '@game/utils/phase2Router';
+import { POWERUPS, POWERUP_CONFIG, getRandomPowerUp, type PowerUpKind } from '@game/objects/powerups';
+import { generateWeek, computeColumns, type Meeting } from '@game/utils/calendarGeneratorPhase2';
+import type { PhaserBall, PhaserBlock, GameObjectWithData, PowerUpContainer } from '@/types/game';
 import { BaseCalendarScene } from './BaseCalendarScene';
 
 export class MainScenePhase2 extends BaseCalendarScene {
@@ -27,9 +28,9 @@ export class MainScenePhase2 extends BaseCalendarScene {
 
   // Phase 2: Power-ups
   private powerUpSpawned: boolean = false;
-  private shieldActive: boolean = false;
+  protected shieldActive: boolean = false; // Changed to protected for BaseCalendarScene
   private powerUpIcon?: PowerUpContainer;
-  private powerUpStatusText?: Phaser.GameObjects.Text;
+  // private powerUpStatusText?: Phaser.GameObjects.Text; // Removed
 
   constructor() {
     super('CalendarScenePhase2');
@@ -43,6 +44,8 @@ export class MainScenePhase2 extends BaseCalendarScene {
     lives?: number,
     fromWeekendBonus?: boolean
   }) {
+    super.init(data); // Call base init to handle onUpdateGameState
+
     console.log('🎯 MainScenePhase2.init() called');
     console.log('🎮 Phase 2 Scene Init - Data received:', data);
 
@@ -96,8 +99,8 @@ export class MainScenePhase2 extends BaseCalendarScene {
     // Update week display (important for URL params)
     this.updateWeek();
 
-    // Phase 2: Add power-up status text
-    this.createPowerUpUI();
+    // Phase 2: Add power-up status text // Removed
+    // this.createPowerUpUI(); // Removed
 
     // Phase 2: Schedule power-up spawn
     this.schedulePowerUpSpawn();
@@ -298,6 +301,7 @@ export class MainScenePhase2 extends BaseCalendarScene {
    * Show dev toast notification (Phase 2 specific)
    */
   private showDevToast(message: string) {
+    // Get board dimensions as these methods will still use Phaser text objects
     const { width, height } = getBoardDimensions();
     const toast = this.add.text(width / 2, height - 80, message, {
       fontSize: '14px',
@@ -323,7 +327,6 @@ export class MainScenePhase2 extends BaseCalendarScene {
     if (this.gameStarted) return;
 
     this.gameStarted = true;
-    this.instructionText.setVisible(false);
 
     const firstBall = this.ballPool.getGroup().getFirstAlive();
     if (firstBall && firstBall.body) {
@@ -353,26 +356,18 @@ export class MainScenePhase2 extends BaseCalendarScene {
   }
 
   /**
-   * Create power-up UI (Phase 2 specific)
-   */
-  private createPowerUpUI() {
-    const { width } = getBoardDimensions();
-    this.powerUpStatusText = this.add.text(width / 2, 54, '', {
-      fontFamily: 'Segoe UI, Inter, sans-serif',
-      fontSize: '12px',
-      color: '#FFD700',
-      backgroundColor: '#8B4513',
-      padding: { x: 8, y: 4 }
-    }).setOrigin(0.5).setVisible(false);
-  }
-
-  /**
    * Handle week transition (Phase 2: uses router)
    */
   protected handleNextWeek() {
     this.currentWeek++;
     this.gameStarted = false;
     this.gameOver = false;
+
+    // Update React UI via event bus
+    gameEventBus.emitGameEvent('WEEK_UPDATE', { week: this.currentWeek });
+    gameEventBus.emitGameEvent('GAME_PAUSE', { isPaused: false });
+    gameEventBus.emitGameEvent('GAME_OVER', { gameOver: false });
+    gameEventBus.emitGameEvent('POWERUP_STATUS', { status: null });
 
     this.ballPool.getGroup().clear(true, true);
     this.ballPositionHistory.clear();
@@ -388,7 +383,7 @@ export class MainScenePhase2 extends BaseCalendarScene {
     // Phase 2: Use router for week transitions
     startWeek(this, this.currentWeek, {
       score: this.score,
-      lives: this.lives
+      lives: this.lives,
     });
   }
 
@@ -397,7 +392,11 @@ export class MainScenePhase2 extends BaseCalendarScene {
    */
   protected loseGameBase() {
     this.gameOver = true;
-    this.showOverlay('Meeting Overload 😵', `You've been overwhelmed by meetings!\nFinal Score: ${this.score}\n\nClick to restart from Week 1`);
+    gameEventBus.emitGameEvent('GAME_OVER', { gameOver: true, finalScore: this.score });
+    this.showOverlay('Meeting Overload 😵', `You've been overwhelmed by meetings!
+Final Score: ${this.score}
+
+Click to restart from Week 1`);
 
     this.input.once('pointerdown', () => {
       this.scene.restart({ week: 1, score: 0, lives: 3 });
@@ -597,18 +596,17 @@ export class MainScenePhase2 extends BaseCalendarScene {
   }
 
   private showPowerUpStatus(text: string) {
-    if (this.powerUpStatusText) {
-      this.powerUpStatusText.setText(text).setVisible(true);
-    }
+    // Update React UI via event bus
+    gameEventBus.emitGameEvent('POWERUP_STATUS', { status: text });
   }
 
   private hidePowerUpStatus() {
-    if (this.powerUpStatusText) {
-      this.powerUpStatusText.setVisible(false);
-    }
+    // Clear power-up status via event bus
+    gameEventBus.emitGameEvent('POWERUP_STATUS', { status: null });
   }
 
   private showShieldUsed() {
+    // This will still use Phaser text objects for now, can be migrated later if needed
     const { width, height } = getBoardDimensions();
     const shieldText = this.add.text(width / 2, height / 2, '🛡️ SHIELD BLOCKED!', {
       fontSize: '48px',

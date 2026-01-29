@@ -1,7 +1,8 @@
 import ReactDOM from 'react-dom/client';
-import App from './App-phase2.tsx';
-import './index.css';
-import FLAGS from './config/flags';
+import App from './App-phase2';
+import './styles/index.css';
+import FLAGS from '@config/flags';
+import { GameProvider } from './context/GameContext';
 
 // Verify Phase 2 is enabled
 if (!FLAGS.PHASE2) {
@@ -12,6 +13,8 @@ console.log('🎮 Calendar Breakout - Phase 2 (STAGING)');
 console.log('✨ Features: Level Curve, Weekly Power-ups, Weekend Dodge Mode');
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
-  <App />
+  <GameProvider>
+    <App />
+  </GameProvider>
 );
 

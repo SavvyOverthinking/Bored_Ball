@@ -5,7 +5,7 @@
  * - Every 5th week: WeekendStageScene (bonus)
  */
 
-import { curve, type LevelTuning } from './levelCurve';
+import { curve, type LevelTuning } from '@game/utils/levelCurve';
 
 /**
  * Check if a week is a bonus weekend week

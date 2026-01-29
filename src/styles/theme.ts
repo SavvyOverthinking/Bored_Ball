@@ -1,8 +1,3 @@
-/**
- * Theme System
- * Support for different calendar styles (Outlook, Google, etc.)
- */
-
 import Phaser from 'phaser';
 
 export type ThemeName = 'outlook' | 'google' | 'default';
@@ -23,6 +18,7 @@ export const THEMES: Record<ThemeName, ThemeSkin> = {
       boss: 0xe53935,
       lunch: 0xfbc02d,
       personal: 0x8e24aa,
+      sticky: 0x9E9E9E, // NEW: Grey color for sticky blocks
     },
   },
   outlook: {
@@ -35,6 +31,7 @@ export const THEMES: Record<ThemeName, ThemeSkin> = {
       boss: 0xe53935,
       lunch: 0xfbc02d,
       personal: 0x8e24aa,
+      sticky: 0x9E9E9E, // NEW
     },
   },
   google: {
@@ -47,6 +44,7 @@ export const THEMES: Record<ThemeName, ThemeSkin> = {
       boss: 0xd50000,
       lunch: 0xf09300,
       personal: 0x8e24aa,
+      sticky: 0x9E9E9E, // NEW
     },
   },
 };
@@ -59,4 +57,3 @@ export function getThemeFromUrl(): ThemeName {
   const theme = params.get('theme') as ThemeName;
   return theme && theme in THEMES ? theme : 'default';
 }
-

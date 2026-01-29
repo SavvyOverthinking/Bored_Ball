@@ -1,90 +1,25 @@
-/**
- * Calendar Breakout Component - Phase 2
- * React wrapper for Phaser game with Phase 2 features
- * Includes: Level Curve, Power-ups, Weekend Dodge Mode
- */
-
-import { useEffect, useRef } from 'react';
-import Phaser from 'phaser';
-import { MainScenePhase2 } from '../game/MainScenePhase2';
-import WeekendStageScene from '../game/WeekendStageScene';
-import { getBoardDimensions } from '../game/calendarGenerator';
-import FLAGS from '../config/flags';
+import { PhaserGameContainer } from './PhaserGameContainer';
+import { MainScenePhase2 } from '@game/scenes/MainScenePhase2';
+import WeekendStageScene from '@game/scenes/WeekendStageScene';
+import FLAGS from '@config/flags';
 
 export function CalendarBreakoutPhase2() {
-  const gameRef = useRef<HTMLDivElement>(null);
-  const phaserGameRef = useRef<Phaser.Game | null>(null);
-
-  useEffect(() => {
-    if (!gameRef.current) return;
-
-    const { width, height } = getBoardDimensions();
-
-    // Phaser game configuration for Phase 2
-    const config: Phaser.Types.Core.GameConfig = {
-      type: Phaser.AUTO,
-      width,
-      height,
-      parent: gameRef.current,
-      physics: {
-        default: 'arcade',
-        arcade: {
-          gravity: { x: 0, y: 0 },
-          debug: false,
-        },
-      },
-      scene: [MainScenePhase2, WeekendStageScene], // Phase 2 scenes
-      backgroundColor: '#fafbfc',
-      scale: {
-        mode: Phaser.Scale.FIT,
-        autoCenter: Phaser.Scale.CENTER_BOTH,
-      },
-    };
-
-    // Create game instance
-    const game = new Phaser.Game(config);
-    phaserGameRef.current = game;
-
-    // Start Phase 2 - ALWAYS at Week 1 (no saved progress)
-    game.events.once('ready', () => {
-      const mainScene = game.scene.getScene('CalendarScenePhase2');
-      if (mainScene) {
-        game.scene.stop('CalendarScenePhase2');
-        // Always start at week 1 with gentle onboarding settings
-        setTimeout(() => {
-          game.scene.start('CalendarScenePhase2', {
-            week: 1, // ALWAYS week 1
-            score: 0,
-            lives: 3,
-            tuning: {
-              week: 1,
-              density: 0.35,
-              bossRate: 0.04,
-              teamRate: 0.10,
-              lunchRate: 0.20,
-              minBlockMins: 45,
-              ballMaxCount: 2,
-              paddleScale: 1.2,
-              baseSpeed: 220
-            }
-          });
-        }, 100);
-      }
-    });
-
-    console.log('🎮 Phase 2 initialized:', {
-      scenes: ['MainScenePhase2', 'WeekendStageScene'],
-      features: ['Level Curve', 'Weekly Power-ups', 'Weekend Dodge']
-    });
-
-    // Cleanup on unmount
-    return () => {
-      if (phaserGameRef.current) {
-        phaserGameRef.current.destroy(true);
-        phaserGameRef.current = null;
-      }
-    };
-  }, []);
+  const initialSceneData = {
+    week: 1, // ALWAYS week 1
+    score: 0,
+    lives: 3,
+    tuning: {
+      week: 1,
+      density: 0.35,
+      bossRate: 0.04,
+      teamRate: 0.10,
+      lunchRate: 0.20,
+      minBlockMins: 45,
+      ballMaxCount: 2,
+      paddleScale: 1.2,
+      baseSpeed: 220
+    }
+  };
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-4">
@@ -101,11 +36,9 @@ export function CalendarBreakoutPhase2() {
         </p>
       </div>
 
-      {/* Game Canvas */}
-      <div 
-        ref={gameRef} 
-        className="shadow-2xl rounded-lg overflow-hidden bg-white border border-gray-200"
-        style={{ maxWidth: '900px', width: '100%' }}
+      <PhaserGameContainer 
+        scenes={[MainScenePhase2, WeekendStageScene]} 
+        initialSceneData={initialSceneData}
       />
 
       {/* Phase 2 Features Info */}
@@ -181,4 +114,3 @@ export function CalendarBreakoutPhase2() {
     </div>
   );
 }
-

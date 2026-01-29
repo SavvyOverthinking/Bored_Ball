@@ -3,7 +3,7 @@
  * Maps meeting data to game board positions using a calendar layout
  */
 
-import { MeetingType } from './physicsModifiers';
+import { MeetingType } from '@game/systems/physicsModifiers';
 
 export interface Meeting {
   id: string;

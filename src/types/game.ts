@@ -4,7 +4,7 @@
  */
 
 import Phaser from 'phaser';
-import { MeetingType } from './physicsModifiers';
+import { MeetingType } from '@game/systems/physicsModifiers';
 
 /**
  * Extended Phaser Ball with physics body and custom properties
@@ -82,10 +82,20 @@ export type PhaserPaddle = (Phaser.GameObjects.Rectangle | Phaser.GameObjects.Sp
 };
 
 /**
+ * Ball pool interface for power-up access
+ */
+export interface BallPoolInterface {
+  getActiveBalls(): PhaserBall[];
+  getActiveBallCount(): number;
+  spawn(x: number, y: number, vx: number, vy: number): PhaserBall;
+}
+
+/**
  * Scene interface with power-up methods (for Phase 2)
  * Extends base Phaser.Scene with custom game methods
  */
 export interface PowerUpScene extends Phaser.Scene {
+  ballPool: BallPoolInterface;
   applyCoffee(duration: number): void;
   scalePaddle(scale: number, duration: number): void;
   grantShield(charges: number): void;

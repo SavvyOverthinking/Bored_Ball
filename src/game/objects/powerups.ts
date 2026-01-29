@@ -1,12 +1,7 @@
-/**
- * Power-up System - Phase 2
- * Weekly power-ups that provide temporary advantages
- * Maximum ONE power-up per week
- */
+import type { PowerUpScene } from '@/types/game';
 
-import type { PowerUpScene } from './types';
-
-export type PowerUpKind = 'coffee' | 'happyHour' | 'dnd' | 'reschedule' | 'cleanup';
+// Add 'multiBall' to PowerUpKind
+export type PowerUpKind = 'coffee' | 'happyHour' | 'dnd' | 'reschedule' | 'cleanup' | 'multiBall';
 
 export interface PowerUpDefinition {
   id: PowerUpKind;
@@ -64,6 +59,25 @@ export const POWERUPS: Record<PowerUpKind, PowerUpDefinition> = {
     description: 'Convert 3 random meetings to lunch breaks',
     color: 0x32CD32,
     apply: (scene) => scene.convertRandomBlocks(3, 'lunch')
+  },
+  // NEW: Multi-ball power-up
+  multiBall: {
+    id: 'multiBall',
+    icon: 'pu_multi',
+    label: '💥 Multi-Ball',
+    description: 'Spawn 2 extra balls',
+    color: 0xFF00FF, // Magenta for multi-ball
+    apply: (scene) => {
+      const activeBalls = scene.ballPool.getActiveBalls();
+      if (activeBalls.length > 0) {
+        const firstBall = activeBalls[0];
+        const body = firstBall.body;
+        if (body) {
+          scene.createExtraBall(firstBall.x + 10, firstBall.y, -body.velocity.x, body.velocity.y);
+          scene.createExtraBall(firstBall.x - 10, firstBall.y, body.velocity.x, -body.velocity.y);
+        }
+      }
+    }
   }
 };
 
@@ -122,8 +136,8 @@ export const PARTICLE_COLORS = {
   happyHour: [0xFFD700, 0xFFA500, 0xFF8C00],
   dnd: [0x4169E1, 0x1E90FF, 0x87CEEB],
   reschedule: [0xFF6600, 0xFF8C00, 0xFFA500],
-  cleanup: [0x32CD32, 0x90EE90, 0x00FF00]
+  cleanup: [0x32CD32, 0x90EE90, 0x00FF00],
+  multiBall: [0xFF00FF, 0xEE82EE, 0xDA70D6] // NEW
 };
 
 export default POWERUPS;
-

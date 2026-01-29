@@ -1,16 +1,12 @@
-/**
- * Base Calendar Scene - Shared functionality between Phase 1 and Phase 2
- * Extracts ~250 lines of duplicated code into a single base class
- */
-
 import Phaser from 'phaser';
-import { getCalendarGridConfig, getBoardDimensions } from './calendarGenerator';
-import { applyMeetingEffect, type MeetingType } from './physicsModifiers';
-import { BallPool } from './BallPool';
-import { calculatePaddleBounceAngle, PHYSICS, STUCK_DETECTION, SCORING } from './constants';
-import { sound } from './soundEffects';
-import type { PhaserBall, PhaserBlock, PhaserPaddle, BallPositionEntry, LoaderFile, GameObjectWithData } from './types';
-import { THEMES, getThemeFromUrl, type ThemeName } from './theme';
+import { getCalendarGridConfig, getBoardDimensions } from '@game/utils/calendarGenerator';
+import { applyMeetingEffect, type MeetingType } from '@game/systems/physicsModifiers';
+import { BallPool } from '@game/objects/BallPool';
+import { calculatePaddleBounceAngle, PHYSICS, STUCK_DETECTION, SCORING } from '@config/constants';
+import { sound } from '@game/systems/soundEffects';
+import { gameEventBus } from '@game/systems/GameEventBus';
+import type { PhaserBall, PhaserBlock, PhaserPaddle, BallPositionEntry, LoaderFile, GameObjectWithData } from '@/types/game';
+import { THEMES, getThemeFromUrl, type ThemeName } from '@styles/theme';
 
 /**
  * Abstract base class for calendar breakout scenes
@@ -19,7 +15,7 @@ import { THEMES, getThemeFromUrl, type ThemeName } from './theme';
 export abstract class BaseCalendarScene extends Phaser.Scene {
   // Game objects
   protected paddle!: PhaserPaddle;
-  protected ballPool!: BallPool;
+  public ballPool!: BallPool;
   protected blocks!: Phaser.Physics.Arcade.StaticGroup;
   protected blockHitPoints: Map<string, number> = new Map();
 
@@ -28,7 +24,7 @@ export abstract class BaseCalendarScene extends Phaser.Scene {
   protected ballCorrectionCooldown: Map<PhaserBall, number> = new Map();
   protected stuckCheckCounter: number = 0;
 
-  // Game state
+  // Game state (managed by React Context)
   protected score: number = 0;
   protected lives: number = 3;
   protected currentWeek: number = 1;
@@ -51,11 +47,20 @@ export abstract class BaseCalendarScene extends Phaser.Scene {
     console.log(`🎨 Theme: ${this.themeName}`);
   }
 
-  // UI elements
-  protected scoreText!: Phaser.GameObjects.Text;
-  protected livesText!: Phaser.GameObjects.Text;
-  protected weekText!: Phaser.GameObjects.Text;
-  protected instructionText!: Phaser.GameObjects.Text;
+  /**
+   * Initialize scene - emit initial state via event bus
+   */
+  init(_data: Record<string, unknown> = {}) {
+    // Emit initial state via event bus
+    gameEventBus.emitGameEvent('SCORE_UPDATE', { score: this.score });
+    gameEventBus.emitGameEvent('LIVES_UPDATE', { lives: this.lives });
+    gameEventBus.emitGameEvent('WEEK_UPDATE', { week: this.currentWeek });
+    gameEventBus.emitGameEvent('GAME_PAUSE', { isPaused: this.isPaused });
+    gameEventBus.emitGameEvent('GAME_OVER', { gameOver: this.gameOver });
+    gameEventBus.emitGameEvent('POWERUP_STATUS', { status: null });
+  }
+
+  // Overlay UI elements (used for pause/win/lose screens within Phaser)
   protected overlayBg!: Phaser.GameObjects.Rectangle;
   protected overlayText!: Phaser.GameObjects.Text;
   protected overlaySubtext!: Phaser.GameObjects.Text;
@@ -133,8 +138,8 @@ export abstract class BaseCalendarScene extends Phaser.Scene {
     // Setup input
     this.setupInputBase();
 
-    // Create UI (calls template method for customization)
-    this.createUIBase();
+    // Create overlay UI for pause/win/lose screens
+    this.createOverlayUI();
 
     // Setup collisions
     this.setupCollisionsBase();
@@ -527,7 +532,6 @@ export abstract class BaseCalendarScene extends Phaser.Scene {
     if (this.gameStarted) return;
 
     this.gameStarted = true;
-    this.instructionText.setVisible(false);
 
     const firstBall = this.ballPool.getGroup().getFirstAlive();
     if (firstBall && firstBall.body) {
@@ -553,61 +557,31 @@ export abstract class BaseCalendarScene extends Phaser.Scene {
     } else {
       this.gameStarted = false;
       this.createBallBase();
-      this.instructionText.setVisible(true);
-      this.instructionText.setText('Click to launch ball');
     }
   }
 
   /**
-   * Create UI elements (can be extended by subclasses)
+   * Create overlay UI elements for pause/win/lose screens
    */
-  protected createUIBase() {
-    const { width } = getBoardDimensions();
+  protected createOverlayUI() {
+    const { width, height } = getBoardDimensions();
 
-    this.scoreText = this.add.text(width - 20, 10, `Score: ${this.score}`, {
-      fontFamily: 'Segoe UI, Inter, sans-serif',
-      fontSize: '14px',
-      color: '#323130',
-      fontStyle: '600',
-    }).setOrigin(1, 0);
+    this.overlayBg = this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.7);
+    this.overlayBg.setDepth(500).setVisible(false);
 
-    this.livesText = this.add.text(width - 20, 32, `Lives: ${this.lives}`, {
-      fontFamily: 'Segoe UI, Inter, sans-serif',
-      fontSize: '14px',
-      color: '#323130',
-      fontStyle: '600',
-    }).setOrigin(1, 0);
-
-    this.weekText = this.add.text(20, 10, `Week: ${this.currentWeek} / ${this.totalWeeks}`, {
-      fontFamily: 'Segoe UI, Inter, sans-serif',
-      fontSize: '14px',
-      color: '#0078d4',
-      fontStyle: '600',
-    }).setOrigin(0, 0);
-
-    this.instructionText = this.add.text(width / 2, 280, 'Move paddle to clear your meetings\nClick to start', {
-      fontFamily: 'Segoe UI, Inter, sans-serif',
-      fontSize: '16px',
-      color: '#605e5c',
-      align: 'center',
-      fontStyle: '400',
-    }).setOrigin(0.5);
-
-    this.overlayBg = this.add.rectangle(width / 2, 320, width, 640, 0x000000, 0.7).setVisible(false);
-
-    this.overlayText = this.add.text(width / 2, 280, '', {
+    this.overlayText = this.add.text(width / 2, height / 2 - 40, '', {
       fontFamily: 'Inter, sans-serif',
       fontSize: '48px',
       color: '#ffffff',
       fontStyle: 'bold',
-    }).setOrigin(0.5).setVisible(false);
+    }).setOrigin(0.5).setDepth(501).setVisible(false);
 
-    this.overlaySubtext = this.add.text(width / 2, 340, '', {
+    this.overlaySubtext = this.add.text(width / 2, height / 2 + 40, '', {
       fontFamily: 'Inter, sans-serif',
       fontSize: '20px',
       color: '#e0e0e0',
       align: 'center',
-    }).setOrigin(0.5).setVisible(false);
+    }).setOrigin(0.5).setDepth(501).setVisible(false);
   }
 
   /**
@@ -694,7 +668,6 @@ export abstract class BaseCalendarScene extends Phaser.Scene {
       overlayTexts.forEach((text) => text.setVisible(true));
     }
 
-    this.instructionText.setVisible(false);
     this.gameStarted = false;
     this.isCountingDown = false;
   }
@@ -734,32 +707,30 @@ export abstract class BaseCalendarScene extends Phaser.Scene {
           this.countdownText.setVisible(false);
           this.splashOverlay.setVisible(false);
           this.isCountingDown = false;
-          this.instructionText.setVisible(true);
-          this.instructionText.setText(`Week ${this.currentWeek} - Click to launch!`);
         }
       }
     });
   }
 
   /**
-   * Update score display
+   * Update score display - emits event to React
    */
   protected updateScore() {
-    this.scoreText.setText(`Score: ${this.score}`);
+    gameEventBus.emitGameEvent('SCORE_UPDATE', { score: this.score });
   }
 
   /**
-   * Update lives display
+   * Update lives display - emits event to React
    */
   protected updateLives() {
-    this.livesText.setText(`Lives: ${this.lives}`);
+    gameEventBus.emitGameEvent('LIVES_UPDATE', { lives: this.lives });
   }
 
   /**
-   * Update week display
+   * Update week display - emits event to React
    */
   protected updateWeek() {
-    this.weekText.setText(`Week: ${this.currentWeek} / ${this.totalWeeks}`);
+    gameEventBus.emitGameEvent('WEEK_UPDATE', { week: this.currentWeek });
   }
 
   /**
@@ -769,6 +740,8 @@ export abstract class BaseCalendarScene extends Phaser.Scene {
     if (this.currentWeek >= this.totalWeeks) {
       sound.yearCleared();
       this.gameOver = true;
+      gameEventBus.emitGameEvent('GAME_OVER', { gameOver: true, finalScore: this.score });
+      gameEventBus.emitGameEvent('WEEK_CLEARED', { week: this.currentWeek, score: this.score });
       this.showOverlay('Year Cleared! 🎉🎊', `You cleared all 52 weeks!\nFinal Score: ${this.score}\n\nClick to restart`);
 
       this.input.once('pointerdown', () => {
@@ -777,6 +750,8 @@ export abstract class BaseCalendarScene extends Phaser.Scene {
     } else {
       sound.weekCleared();
       this.gameOver = true;
+      gameEventBus.emitGameEvent('GAME_OVER', { gameOver: true });
+      gameEventBus.emitGameEvent('WEEK_CLEARED', { week: this.currentWeek, score: this.score });
       this.showOverlay(`Week ${this.currentWeek} Cleared! 🎉`, `Great job! Moving to Week ${this.currentWeek + 1}...\nScore: ${this.score}\n\nClick to continue`);
 
       this.input.once('pointerdown', () => {
@@ -790,6 +765,7 @@ export abstract class BaseCalendarScene extends Phaser.Scene {
    */
   protected loseGameBase() {
     this.gameOver = true;
+    gameEventBus.emitGameEvent('GAME_OVER', { gameOver: true, finalScore: this.score });
     this.showOverlay('Meeting Overload 😵', `You've been overwhelmed by meetings!\nFinal Score: ${this.score}\n\nClick to try again`);
 
     this.input.once('pointerdown', () => {
@@ -821,6 +797,7 @@ export abstract class BaseCalendarScene extends Phaser.Scene {
   protected pauseGame() {
     this.isPaused = true;
     this.physics.pause();
+    gameEventBus.emitGameEvent('GAME_PAUSE', { isPaused: true });
 
     if (this.pointerLocked) {
       document.exitPointerLock();
@@ -840,6 +817,7 @@ export abstract class BaseCalendarScene extends Phaser.Scene {
     this.isPaused = false;
     this.escapePressed = false;
     this.physics.resume();
+    gameEventBus.emitGameEvent('GAME_PAUSE', { isPaused: false });
     this.hideOverlay();
   }
 

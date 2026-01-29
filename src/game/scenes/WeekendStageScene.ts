@@ -5,9 +5,9 @@
  */
 
 import Phaser from 'phaser';
-import { getBoardDimensions } from './calendarGenerator';
-import { sound } from './soundEffects';
-import { WEEKEND_STAGE } from './constants';
+import { getBoardDimensions } from '@game/utils/calendarGenerator';
+import { sound } from '@game/systems/soundEffects';
+import { WEEKEND_STAGE } from '@config/constants';
 
 interface WeekendStageData {
   week: number;
