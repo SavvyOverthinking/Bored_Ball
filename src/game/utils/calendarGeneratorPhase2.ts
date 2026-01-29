@@ -5,7 +5,23 @@
 
 import { curve } from '@game/utils/levelCurve';
 import { mulberry32 } from '@game/utils/rng';
-import type { MeetingType } from '@game/systems/physicsModifiers';
+import { type MeetingType, canAppearInWeek, MEETING_TYPE_INFO } from '@game/systems/physicsModifiers';
+
+// Title templates for all meeting types
+const MEETING_TITLES: Record<MeetingType, string[]> = {
+  'boss': ['1:1 with Manager', 'Exec Review', 'Performance Review', 'Strategy Sync'],
+  'team': ['Team Standup', 'Sprint Planning', 'Team Sync', 'Retro'],
+  '1:1': ['1:1 Sync', 'Weekly Check-in', 'Project Update', 'Coffee Chat'],
+  'lunch': ['Lunch Break', 'Team Lunch', 'Lunch & Learn'],
+  'personal': ['Focus Time', 'Personal', 'Deep Work', 'OOO'],
+  'sticky': ['Sticky Note', 'Important Reminder', 'Long Discussion'],
+  // New meeting types
+  'recurring': ['Recurring Standup', 'Weekly Sync', 'Daily Check-in', 'Sprint Review'],
+  'allhands': ['All-Hands Meeting', 'Company Update', 'Town Hall', 'Quarterly Review'],
+  'focus': ['Focus Time', 'Deep Work', 'No Meetings', 'Heads Down'],
+  'emergency': ['URGENT: Issue', 'Emergency Standup', 'Incident Review', 'Fire Drill'],
+  'optional': ['Optional Sync', 'FYI Meeting', 'Drop-in Q&A', 'Office Hours']
+};
 
 export interface Meeting {
   day: number;              // 0..4 (Mon-Fri)
@@ -84,18 +100,10 @@ function generateWeek2Basics(): Meeting[] {
   const rand = mulberry32(0xB0B0 + 2); // Deterministic for week 2
   
   const types: MeetingType[] = ['team', '1:1', 'lunch', 'personal'];
-  const typeTitles: Record<MeetingType, string[]> = {
-    'team': ['Team Standup', 'Team Sync'],
-    '1:1': ['1:1 Check-in', 'Weekly 1:1'],
-    'lunch': ['Lunch Break', 'Lunch & Learn'],
-    'personal': ['Focus Time', 'Personal Time'],
-    'boss': [], // Not used in week 2
-    'sticky': [] // NEW
-  };
-  
+
   // Add 2 of each type (2×4 = 8 meetings total)
   for (const type of types) {
-    const titles = typeTitles[type];
+    const titles = MEETING_TITLES[type];
     
     for (let i = 0; i < 2; i++) {
       const day = Math.floor(rand() * 5);
@@ -147,32 +155,50 @@ function generateWeeks3to20Progressive(week: number): Meeting[] {
   // Min duration: 60 min (week 3) → 30 min (week 20)
   const minDuration = Math.round(60 - progress * 30);
   
-  const typeTitles: Record<MeetingType, string[]> = {
-    'boss': ['1:1 with Manager', 'Exec Review', 'Strategy Sync'],
-    'team': ['Team Standup', 'Sprint Planning', 'Team Retro', 'All Hands'],
-    '1:1': ['1:1 Sync', 'Weekly Check-in', 'Project Update', 'Coffee Chat'],
-    'lunch': ['Lunch Break', 'Team Lunch', 'Lunch & Learn'],
-    'personal': ['Focus Time', 'Personal', 'Deep Work', 'Study Time'],
-    'sticky': ['Sticky Note', 'Important Reminder', 'Long Discussion'] // NEW
-  };
-  
+  // NEW: Focus and Optional types available from early weeks
+  const focusRate = 0.05 + progress * 0.05;  // 5% → 10%
+  const optionalRate = 0.03 + progress * 0.02; // 3% → 5%
+  // Recurring starts at week 15
+  const recurringRate = week >= 15 ? (week - 15) / 20 * 0.08 : 0; // 0% → 8%
+
   const pickType = (): MeetingType => {
     const r = rand();
-    if (r < bossRate) return 'boss';
-    if (r < bossRate + teamRate) return 'team';
-    if (r < bossRate + teamRate + lunchRate) return 'lunch';
-    if (r < bossRate + teamRate + lunchRate + stickyRate) return 'sticky'; // NEW
-    if (r < bossRate + teamRate + lunchRate + stickyRate + 0.20) return '1:1'; // Adjusted probability
-    return 'personal'; // Adjusted probability
+    let threshold = 0;
+
+    threshold += bossRate;
+    if (r < threshold) return 'boss';
+
+    threshold += teamRate;
+    if (r < threshold) return 'team';
+
+    threshold += lunchRate;
+    if (r < threshold) return 'lunch';
+
+    threshold += stickyRate;
+    if (r < threshold) return 'sticky';
+
+    threshold += focusRate;
+    if (r < threshold) return 'focus';
+
+    threshold += optionalRate;
+    if (r < threshold) return 'optional';
+
+    threshold += recurringRate;
+    if (r < threshold && canAppearInWeek('recurring', week)) return 'recurring';
+
+    threshold += 0.20; // 1:1 rate
+    if (r < threshold) return '1:1';
+
+    return 'personal';
   };
-  
+
   const pickDuration = (): number => {
     const durations = [30, 60, 90].filter(d => d >= minDuration);
     return durations[Math.floor(rand() * durations.length)];
   };
-  
+
   const pickTitle = (type: MeetingType): string => {
-    const titles = typeTitles[type];
+    const titles = MEETING_TITLES[type] || ['Meeting'];
     return titles[Math.floor(rand() * titles.length)];
   };
   
@@ -232,34 +258,67 @@ function generateWeeks21PlusCurve(week: number): Meeting[] {
   const totalSlots = (DAY_MINS / slot) * 5;
   const targetMeetings = Math.round(totalSlots * t.density);
   
-  const typeTitles: Record<MeetingType, string[]> = {
-    'boss': ['1:1 with Manager', 'Exec Review', 'Performance Review', 'Strategy Sync'],
-    'team': ['Team Standup', 'Sprint Planning', 'Team Sync', 'All Hands', 'Retro'],
-    '1:1': ['1:1 Sync', 'Weekly Check-in', 'Project Update', 'Coffee Chat'],
-    'lunch': ['Lunch Break', 'Team Lunch', 'Lunch & Learn'],
-    'personal': ['Focus Time', 'Personal', 'Deep Work', 'OOO'],
-    'sticky': ['Sticky Note', 'Important Reminder', 'Long Discussion', 'Decision Block'] // NEW
-  };
-  
   const pickDuration = (): number => {
     const choices = [15, 30, 45, 60].filter(m => m >= t.minBlockMins);
     return choices[Math.floor(rand() * choices.length)] || 30;
   };
-  
+
+  // Track counts for maxPerWeek limits
+  const typeCounts: Partial<Record<MeetingType, number>> = {};
+
+  // Calculate new type rates based on week
+  const focusRate = 0.08;  // 8% focus time
+  const optionalRate = 0.05; // 5% optional
+  const recurringRate = canAppearInWeek('recurring', week) ? 0.06 : 0;
+  const allhandsRate = canAppearInWeek('allhands', week) ? 0.04 : 0;
+  const emergencyRate = canAppearInWeek('emergency', week) ? 0.05 : 0;
+  const stickyRate = 0.05;
+
   const pickType = (): MeetingType => {
     const r = rand();
-    if (r < t.bossRate) return 'boss';
-    if (r < t.bossRate + t.teamRate) return 'team';
-    if (r < t.bossRate + t.teamRate + t.lunchRate) {
-      return rand() < 0.5 ? 'lunch' : 'personal';
+    let threshold = 0;
+
+    // Check maxPerWeek limits before returning special types
+    const canAddAllhands = (typeCounts['allhands'] || 0) < (MEETING_TYPE_INFO['allhands'].maxPerWeek || Infinity);
+
+    threshold += t.bossRate;
+    if (r < threshold) return 'boss';
+
+    threshold += t.teamRate;
+    if (r < threshold) return 'team';
+
+    threshold += t.lunchRate / 2;
+    if (r < threshold) return 'lunch';
+
+    threshold += t.lunchRate / 2;
+    if (r < threshold) return 'personal';
+
+    threshold += stickyRate;
+    if (r < threshold) return 'sticky';
+
+    threshold += focusRate;
+    if (r < threshold) return 'focus';
+
+    threshold += optionalRate;
+    if (r < threshold) return 'optional';
+
+    threshold += recurringRate;
+    if (r < threshold) return 'recurring';
+
+    threshold += allhandsRate;
+    if (r < threshold && canAddAllhands) {
+      typeCounts['allhands'] = (typeCounts['allhands'] || 0) + 1;
+      return 'allhands';
     }
-    // NEW: Introduce sticky blocks in later weeks
-    if (r < t.bossRate + t.teamRate + t.lunchRate + 0.05) return 'sticky'; // 5% chance
+
+    threshold += emergencyRate;
+    if (r < threshold) return 'emergency';
+
     return '1:1';
   };
-  
+
   const pickTitle = (type: MeetingType): string => {
-    const titles = typeTitles[type];
+    const titles = MEETING_TITLES[type] || ['Meeting'];
     return titles[Math.floor(rand() * titles.length)];
   };
   

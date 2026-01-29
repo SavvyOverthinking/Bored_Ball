@@ -5,6 +5,7 @@ import { BallPool } from '@game/objects/BallPool';
 import { calculatePaddleBounceAngle, PHYSICS, STUCK_DETECTION, SCORING } from '@config/constants';
 import { sound } from '@game/systems/soundEffects';
 import { gameEventBus } from '@game/systems/GameEventBus';
+import { ComboManager } from '@game/systems/comboSystem';
 import type { PhaserBall, PhaserBlock, PhaserPaddle, BallPositionEntry, LoaderFile, GameObjectWithData } from '@/types/game';
 import { THEMES, getThemeFromUrl, type ThemeName } from '@styles/theme';
 
@@ -35,6 +36,9 @@ export abstract class BaseCalendarScene extends Phaser.Scene {
   protected escapePressed: boolean = false;
   protected pointerLocked: boolean = false;
 
+  // Combo system
+  protected comboManager: ComboManager = new ComboManager();
+
   // Theme system
   protected themeName: ThemeName;
   protected theme: typeof THEMES[ThemeName];
@@ -51,6 +55,9 @@ export abstract class BaseCalendarScene extends Phaser.Scene {
    * Initialize scene - emit initial state via event bus
    */
   init(_data: Record<string, unknown> = {}) {
+    // Reset combo on scene init
+    this.comboManager = new ComboManager();
+
     // Emit initial state via event bus
     gameEventBus.emitGameEvent('SCORE_UPDATE', { score: this.score });
     gameEventBus.emitGameEvent('LIVES_UPDATE', { lives: this.lives });
@@ -58,6 +65,7 @@ export abstract class BaseCalendarScene extends Phaser.Scene {
     gameEventBus.emitGameEvent('GAME_PAUSE', { isPaused: this.isPaused });
     gameEventBus.emitGameEvent('GAME_OVER', { gameOver: this.gameOver });
     gameEventBus.emitGameEvent('POWERUP_STATUS', { status: null });
+    gameEventBus.emitGameEvent('COMBO_UPDATE', { combo: 0, multiplier: 1 });
   }
 
   // Overlay UI elements (used for pause/win/lose screens within Phaser)
@@ -391,6 +399,13 @@ export abstract class BaseCalendarScene extends Phaser.Scene {
 
     sound.paddleHit();
 
+    // Reset combo on paddle hit (encourages risky play)
+    const comboState = this.comboManager.reset();
+    gameEventBus.emitGameEvent('COMBO_UPDATE', {
+      combo: comboState.hits,
+      multiplier: comboState.multiplier
+    });
+
     const paddleWidth = this.getPaddleWidth();
     const angle = calculatePaddleBounceAngle(ball.x, paddle.x, paddleWidth);
 
@@ -423,6 +438,22 @@ export abstract class BaseCalendarScene extends Phaser.Scene {
     const currentHP = this.blockHitPoints.get(blockId) || 1;
     const newHP = currentHP - 1;
 
+    // Increment combo and get multiplier
+    const comboState = this.comboManager.hit();
+    const multiplier = comboState.multiplier;
+
+    // Emit combo update
+    gameEventBus.emitGameEvent('COMBO_UPDATE', {
+      combo: comboState.hits,
+      multiplier: comboState.multiplier
+    });
+
+    // Check if we just reached On Fire
+    if (this.comboManager.didJustReachOnFire()) {
+      console.log('🔥 ON FIRE! Combo bonus active!');
+      // Could add visual/audio effects here
+    }
+
     if (newHP <= 0) {
       sound.blockDestroyed();
       block.destroy();
@@ -436,7 +467,9 @@ export abstract class BaseCalendarScene extends Phaser.Scene {
       });
 
       this.blockHitPoints.delete(blockId);
-      this.score += currentHP * SCORING.POINTS_PER_DESTROY;
+      // Apply combo multiplier to destroy points
+      const points = Math.round(currentHP * SCORING.POINTS_PER_DESTROY * multiplier);
+      this.score += points;
       this.updateScore();
     } else {
       sound.blockHit();
@@ -450,7 +483,9 @@ export abstract class BaseCalendarScene extends Phaser.Scene {
         ease: 'Power1'
       });
 
-      this.score += SCORING.POINTS_PER_HIT;
+      // Apply combo multiplier to hit points
+      const points = Math.round(SCORING.POINTS_PER_HIT * multiplier);
+      this.score += points;
       this.updateScore();
     }
 

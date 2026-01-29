@@ -1,4 +1,22 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+
+// Mock Phaser before importing modules that depend on it
+vi.mock('phaser', () => ({
+  default: {
+    Math: {
+      Between: (min: number, max: number) => min + Math.floor(Math.random() * (max - min + 1))
+    },
+    Events: {
+      EventEmitter: class {}
+    },
+    Physics: {
+      Arcade: {
+        Body: class {}
+      }
+    }
+  }
+}));
+
 import { generateWeek, computeColumns, minutesToHourLabel, type Meeting } from '../calendarGeneratorPhase2';
 
 // Mock console.log to suppress output during tests
@@ -113,7 +131,7 @@ describe('calendarGeneratorPhase2', () => {
           expect(m.startMin).toBeGreaterThanOrEqual(0);
           expect(m.endMin).toBeGreaterThan(m.startMin);
           expect(m.endMin).toBeLessThanOrEqual(480); // 8 hours * 60 minutes
-          expect(['1:1', 'team', 'boss', 'lunch', 'personal', 'sticky']).toContain(m.type);
+          expect(['1:1', 'team', 'boss', 'lunch', 'personal', 'sticky', 'recurring', 'allhands', 'focus', 'emergency', 'optional']).toContain(m.type);
         });
       });
 
