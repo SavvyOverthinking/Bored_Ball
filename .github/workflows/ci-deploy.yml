@@ -45,6 +45,9 @@ jobs:
         env:
           VITE_PHASE2: '1'
 
+      - name: Copy index-phase2.html to index.html
+        run: cp dist/index-phase2.html dist/index.html
+
       - name: Upload artifact
         if: github.ref == 'refs/heads/main' && github.event_name == 'push'
         uses: actions/upload-pages-artifact@v3
