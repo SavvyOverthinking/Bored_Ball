@@ -1,11 +1,14 @@
 /**
  * Phase 2 Calendar Generator
- * Progressive difficulty system with special onboarding
+ * CLASSIC ARCADE PROGRESSION:
+ * - Weeks 1-3: Easy (top of screen, few blocks)
+ * - Weeks 4-7: Medium (top half, more blocks)
+ * - Weeks 8-10: Hard (3/4 screen, many blocks)
+ * - Weeks 11+: Full difficulty (plateau)
  */
 
-import { curve } from '@game/utils/levelCurve';
 import { mulberry32 } from '@game/utils/rng';
-import { type MeetingType, canAppearInWeek, MEETING_TYPE_INFO } from '@game/systems/physicsModifiers';
+import { type MeetingType, canAppearInWeek } from '@game/systems/physicsModifiers';
 
 // Title templates for all meeting types
 const MEETING_TITLES: Record<MeetingType, string[]> = {
@@ -15,7 +18,6 @@ const MEETING_TITLES: Record<MeetingType, string[]> = {
   'lunch': ['Lunch Break', 'Team Lunch', 'Lunch & Learn'],
   'personal': ['Focus Time', 'Personal', 'Deep Work', 'OOO'],
   'sticky': ['Sticky Note', 'Important Reminder', 'Long Discussion'],
-  // New meeting types
   'recurring': ['Recurring Standup', 'Weekly Sync', 'Daily Check-in', 'Sprint Review'],
   'allhands': ['All-Hands Meeting', 'Company Update', 'Town Hall', 'Quarterly Review'],
   'focus': ['Focus Time', 'Deep Work', 'No Meetings', 'Heads Down'],
@@ -41,175 +43,176 @@ const END_HOUR = 17;
 const DAY_MINS = (END_HOUR - START_HOUR) * 60; // 480 minutes
 
 /**
+ * CLASSIC ARCADE PROGRESSION CONFIG
+ * Meetings start at TOP and gradually fill down over first 10 weeks
+ */
+interface ArcadeConfig {
+  maxStartMin: number;    // How far down meetings can start (0=top, 480=bottom)
+  meetingCount: number;   // Number of meetings to generate
+  minDuration: number;    // Minimum meeting duration
+  bossRate: number;       // Chance of boss meeting
+  teamRate: number;       // Chance of team meeting
+}
+
+function getArcadeConfig(week: number): ArcadeConfig {
+  // Classic arcade: start easy at top, get harder over 10 levels
+  if (week <= 2) {
+    // EASY: Top of screen only, few meetings
+    return {
+      maxStartMin: 120,     // Only 9am-11am area
+      meetingCount: 8 + week * 2,
+      minDuration: 60,
+      bossRate: 0,
+      teamRate: 0.1,
+    };
+  } else if (week <= 5) {
+    // MEDIUM-EASY: Top third, more meetings
+    return {
+      maxStartMin: 180,     // 9am-12pm area
+      meetingCount: 12 + (week - 2) * 3,
+      minDuration: 45,
+      bossRate: 0.02,
+      teamRate: 0.15,
+    };
+  } else if (week <= 8) {
+    // MEDIUM: Top half, introduce variety
+    return {
+      maxStartMin: 240,     // 9am-1pm area
+      meetingCount: 20 + (week - 5) * 4,
+      minDuration: 30,
+      bossRate: 0.05,
+      teamRate: 0.18,
+    };
+  } else if (week <= 10) {
+    // MEDIUM-HARD: 3/4 of screen
+    return {
+      maxStartMin: 360,     // 9am-3pm area
+      meetingCount: 30 + (week - 8) * 5,
+      minDuration: 30,
+      bossRate: 0.08,
+      teamRate: 0.20,
+    };
+  } else {
+    // HARD: Full screen (plateau) - use curve system
+    return {
+      maxStartMin: DAY_MINS - 30, // Full calendar
+      meetingCount: 45 + Math.min(week - 10, 20) * 2,
+      minDuration: 15,
+      bossRate: 0.10,
+      teamRate: 0.22,
+    };
+  }
+}
+
+/**
  * Generate a deterministic calendar for a given week
- * Progressive difficulty: Week 1 (onboarding) → Week 12 (chaotic) → Week 52 (brutal)
+ * CLASSIC ARCADE: Easy at top, gradually fills down
  */
 export function generateWeek(week: number): Meeting[] {
   console.log(`🗓️ Generating calendar for Week ${week}...`);
-  
+
   if (week === 1) {
-    return generateWeek1Onboarding();
-  } else if (week === 2) {
-    return generateWeek2Basics();
-  } else if (week >= 3 && week <= 20) {
-    return generateWeeks3to20Progressive(week);
-  } else {
-    return generateWeeks21PlusCurve(week);
+    return generateWeek1Simple();
   }
+
+  return generateArcadeProgression(week);
 }
 
 /**
- * WEEK 1: Onboarding - Grey blocks around lunch time
- * Goal: Get player comfortable with mechanics
+ * WEEK 1: Super simple - just grey blocks at very top
  */
-function generateWeek1Onboarding(): Meeting[] {
+function generateWeek1Simple(): Meeting[] {
   const meetings: Meeting[] = [];
-  
-  // For each day (Mon-Fri), place blocks HIGH UP (early in the day) to make them easy to hit
+
+  // 10 simple blocks across 5 days, all at very top
   for (let day = 0; day < 5; day++) {
-    // One 2-hour onboarding block EARLY morning (9:00-11:00 AM)
-    // startMin = 0 means 9:00 AM (start of work day) - as high as possible!
+    // Two blocks per day, stacked at top
     meetings.push({
       day,
-      startMin: 0,      // 9:00 AM (top of calendar)
-      endMin: 120,      // 11:00 AM
-      type: 'personal', // Grey color
+      startMin: 0,        // 9:00 AM - TOP
+      endMin: 60,         // 10:00 AM
+      type: 'personal',
       title: 'Onboarding'
     });
-    
-    // One 2-hour onboarding block late morning (11:00 AM-1:00 PM)
+
     meetings.push({
       day,
-      startMin: 120,    // 11:00 AM
-      endMin: 240,      // 1:00 PM
-      type: 'personal', // Grey color
+      startMin: 60,       // 10:00 AM
+      endMin: 120,        // 11:00 AM
+      type: 'personal',
       title: 'Onboarding'
     });
   }
-  
-  console.log(`✅ Week 1: ${meetings.length} onboarding blocks (2 per day × 5 days) - positioned HIGH for easy hits`);
+
+  console.log(`✅ Week 1: ${meetings.length} simple blocks at TOP of screen`);
   return meetings;
 }
 
 /**
- * WEEK 2: Basics - 2 of each color (NO Boss yet)
- * Types: Team (green), 1:1 (blue), Lunch (yellow), Personal (purple)
+ * Generate meetings with classic arcade progression
+ * Blocks start at top, gradually fill down over 10 levels
  */
-function generateWeek2Basics(): Meeting[] {
-  const meetings: Meeting[] = [];
-  const rand = mulberry32(0xB0B0 + 2); // Deterministic for week 2
-  
-  const types: MeetingType[] = ['team', '1:1', 'lunch', 'personal'];
-
-  // Add 2 of each type (2×4 = 8 meetings total)
-  for (const type of types) {
-    const titles = MEETING_TITLES[type];
-    
-    for (let i = 0; i < 2; i++) {
-      const day = Math.floor(rand() * 5);
-      const duration = 60; // 1 hour meetings
-      const latestStart = DAY_MINS - duration;
-      const startMin = Math.floor(rand() * (latestStart / 15)) * 15; // 15-min slots
-      
-      meetings.push({
-        day,
-        startMin,
-        endMin: startMin + duration,
-        type,
-        title: titles[i % titles.length]
-      });
-    }
-  }
-  
-  console.log(`✅ Week 2: ${meetings.length} meetings (2 of each type, no Boss)`);
-  return meetings;
-}
-
-/**
- * WEEKS 3-20: Progressive difficulty (First ~5 months)
- * Gradually introduce more meetings, Boss meetings, shorter durations
- * By week 20, should be chaotic with lots of overlaps
- */
-function generateWeeks3to20Progressive(week: number): Meeting[] {
+function generateArcadeProgression(week: number): Meeting[] {
   const meetings: Meeting[] = [];
   const rand = mulberry32(0xB0B0 + week);
-  
-  // Progressive parameters (linear interpolation from week 3 to 20)
-  const progress = (week - 3) / 17; // 0.0 at week 3, 1.0 at week 20
+  const config = getArcadeConfig(week);
 
-  // Meeting count: 10 (week 3) → 40 (week 20)
-  const meetingCount = Math.round(10 + progress * 30);
+  // Simple types for early weeks, more variety later
+  const getAvailableTypes = (): MeetingType[] => {
+    const types: MeetingType[] = ['personal', 'lunch', '1:1'];
 
-  // Boss meeting rate: 0% (week 3) → 10% (week 20)
-  const bossRate = progress * 0.10;
-  
-  // Team meeting rate: 20% → 30%
-  const teamRate = 0.20 + progress * 0.10;
-  
-  // Lunch rate: 20% → 15%
-  const lunchRate = 0.20 - progress * 0.05;
+    if (week >= 3) types.push('team');
+    if (week >= 5) types.push('boss');
+    if (week >= 8) types.push('sticky');
+    if (week >= 12) types.push('focus', 'optional');
+    if (canAppearInWeek('recurring', week)) types.push('recurring');
+    if (canAppearInWeek('allhands', week)) types.push('allhands');
+    if (canAppearInWeek('emergency', week)) types.push('emergency');
 
-  // NEW: Sticky rate - 0% (week 3) -> 5% (week 20)
-  const stickyRate = progress * 0.05;
-  
-  // Min duration: 60 min (week 3) → 30 min (week 20)
-  const minDuration = Math.round(60 - progress * 30);
-  
-  // NEW: Focus and Optional types available from early weeks
-  const focusRate = 0.05 + progress * 0.05;  // 5% → 10%
-  const optionalRate = 0.03 + progress * 0.02; // 3% → 5%
-  // Recurring starts at week 15
-  const recurringRate = week >= 15 ? (week - 15) / 20 * 0.08 : 0; // 0% → 8%
+    return types;
+  };
+
+  const availableTypes = getAvailableTypes();
 
   const pickType = (): MeetingType => {
     const r = rand();
-    let threshold = 0;
 
-    threshold += bossRate;
-    if (r < threshold) return 'boss';
+    // Boss meetings (if available)
+    if (availableTypes.includes('boss') && r < config.bossRate) {
+      return 'boss';
+    }
 
-    threshold += teamRate;
-    if (r < threshold) return 'team';
+    // Team meetings (if available)
+    if (availableTypes.includes('team') && r < config.bossRate + config.teamRate) {
+      return 'team';
+    }
 
-    threshold += lunchRate;
-    if (r < threshold) return 'lunch';
-
-    threshold += stickyRate;
-    if (r < threshold) return 'sticky';
-
-    threshold += focusRate;
-    if (r < threshold) return 'focus';
-
-    threshold += optionalRate;
-    if (r < threshold) return 'optional';
-
-    threshold += recurringRate;
-    if (r < threshold && canAppearInWeek('recurring', week)) return 'recurring';
-
-    threshold += 0.20; // 1:1 rate
-    if (r < threshold) return '1:1';
-
-    return 'personal';
+    // Random from available types
+    const simpleTypes = availableTypes.filter(t => !['boss', 'team', 'allhands', 'emergency'].includes(t));
+    return simpleTypes[Math.floor(rand() * simpleTypes.length)] || 'personal';
   };
 
   const pickDuration = (): number => {
-    const durations = [30, 60, 90].filter(d => d >= minDuration);
-    return durations[Math.floor(rand() * durations.length)];
+    const options = [30, 45, 60].filter(d => d >= config.minDuration);
+    return options[Math.floor(rand() * options.length)] || 30;
   };
 
   const pickTitle = (type: MeetingType): string => {
     const titles = MEETING_TITLES[type] || ['Meeting'];
     return titles[Math.floor(rand() * titles.length)];
   };
-  
-  // Generate meetings
-  for (let i = 0; i < meetingCount; i++) {
+
+  // Generate meetings - KEY: startMin is constrained to top of screen early on
+  for (let i = 0; i < config.meetingCount; i++) {
     const day = Math.floor(rand() * 5);
     const duration = pickDuration();
-    const latestStart = DAY_MINS - duration;
-    const startMin = Math.floor(rand() * (latestStart / 15)) * 15;
+
+    // CRITICAL: Limit how far down meetings can start based on week
+    const maxStart = Math.min(config.maxStartMin, DAY_MINS - duration);
+    const startMin = Math.floor(rand() * (maxStart / 15)) * 15;
+
     const type = pickType();
-    
+
     meetings.push({
       day,
       startMin,
@@ -218,148 +221,30 @@ function generateWeeks3to20Progressive(week: number): Meeting[] {
       title: pickTitle(type)
     });
   }
-  
-  // Add intentional overlaps starting week 6 (chaos builds)
+
+  // Add some overlaps for later weeks (double bookings)
   if (week >= 6) {
-    const overlapCount = Math.round((week - 5) * 0.6); // 0.6 overlaps per week after 5
-    for (let i = 0; i < overlapCount && i < 5; i++) {
-      const sourceMeeting = meetings[Math.floor(rand() * meetings.length)];
-      if (sourceMeeting) {
+    const overlapCount = Math.min(Math.floor((week - 5) * 0.8), 8);
+    for (let i = 0; i < overlapCount; i++) {
+      const source = meetings[Math.floor(rand() * meetings.length)];
+      if (source) {
         const duration = pickDuration();
         const offset = rand() < 0.5 ? -15 : 15;
-        const startMin = Math.max(0, Math.min(DAY_MINS - duration, sourceMeeting.startMin + offset));
-        const type = pickType();
-        
+        const startMin = Math.max(0, Math.min(config.maxStartMin - duration, source.startMin + offset));
+
         meetings.push({
-          day: sourceMeeting.day,
+          day: source.day,
           startMin,
           endMin: startMin + duration,
-          type,
-          title: pickTitle(type)
+          type: pickType(),
+          title: pickTitle(pickType())
         });
       }
     }
   }
-  
-  console.log(`✅ Week ${week} (Progressive): ${meetings.length} meetings, ${Math.round(bossRate * 100)}% boss rate`);
-  return meetings;
-}
 
-/**
- * WEEKS 21+: Follow original difficulty curve
- * Use the tuning system for precise control
- */
-function generateWeeks21PlusCurve(week: number): Meeting[] {
-  const meetings: Meeting[] = [];
-  const rand = mulberry32(0xB0B0 + week);
-  const t = curve(week);
-  
-  const slot = 15; // 15-minute granularity
-  const totalSlots = (DAY_MINS / slot) * 5;
-  const targetMeetings = Math.round(totalSlots * t.density);
-  
-  const pickDuration = (): number => {
-    const choices = [15, 30, 45, 60].filter(m => m >= t.minBlockMins);
-    return choices[Math.floor(rand() * choices.length)] || 30;
-  };
-
-  // Track counts for maxPerWeek limits
-  const typeCounts: Partial<Record<MeetingType, number>> = {};
-
-  // Calculate new type rates based on week
-  const focusRate = 0.08;  // 8% focus time
-  const optionalRate = 0.05; // 5% optional
-  const recurringRate = canAppearInWeek('recurring', week) ? 0.06 : 0;
-  const allhandsRate = canAppearInWeek('allhands', week) ? 0.04 : 0;
-  const emergencyRate = canAppearInWeek('emergency', week) ? 0.05 : 0;
-  const stickyRate = 0.05;
-
-  const pickType = (): MeetingType => {
-    const r = rand();
-    let threshold = 0;
-
-    // Check maxPerWeek limits before returning special types
-    const canAddAllhands = (typeCounts['allhands'] || 0) < (MEETING_TYPE_INFO['allhands'].maxPerWeek || Infinity);
-
-    threshold += t.bossRate;
-    if (r < threshold) return 'boss';
-
-    threshold += t.teamRate;
-    if (r < threshold) return 'team';
-
-    threshold += t.lunchRate / 2;
-    if (r < threshold) return 'lunch';
-
-    threshold += t.lunchRate / 2;
-    if (r < threshold) return 'personal';
-
-    threshold += stickyRate;
-    if (r < threshold) return 'sticky';
-
-    threshold += focusRate;
-    if (r < threshold) return 'focus';
-
-    threshold += optionalRate;
-    if (r < threshold) return 'optional';
-
-    threshold += recurringRate;
-    if (r < threshold) return 'recurring';
-
-    threshold += allhandsRate;
-    if (r < threshold && canAddAllhands) {
-      typeCounts['allhands'] = (typeCounts['allhands'] || 0) + 1;
-      return 'allhands';
-    }
-
-    threshold += emergencyRate;
-    if (r < threshold) return 'emergency';
-
-    return '1:1';
-  };
-
-  const pickTitle = (type: MeetingType): string => {
-    const titles = MEETING_TITLES[type] || ['Meeting'];
-    return titles[Math.floor(rand() * titles.length)];
-  };
-  
-  // Generate primary meetings
-  for (let i = 0; i < targetMeetings; i++) {
-    const day = Math.floor(rand() * 5);
-    const dur = pickDuration();
-    const latestStart = DAY_MINS - dur;
-    const startMin = Math.floor(rand() * (latestStart / slot)) * slot;
-    const type = pickType();
-    
-    meetings.push({
-      day,
-      startMin,
-      endMin: startMin + dur,
-      type,
-      title: pickTitle(type)
-    });
-  }
-  
-  // Add intentional overlaps (realistic double bookings)
-  const overlapCount = Math.floor(targetMeetings * 0.06); // 6% overlap rate
-  for (let k = 0; k < overlapCount; k++) {
-    const sourceMeeting = meetings[Math.floor(rand() * meetings.length)];
-    if (sourceMeeting) {
-      const dur = pickDuration();
-      const offset = rand() < 0.5 ? -15 : 15;
-      const startMin = Math.max(0, Math.min(DAY_MINS - dur, sourceMeeting.startMin + offset));
-      const type = pickType();
-      
-      meetings.push({
-        day: sourceMeeting.day,
-        startMin,
-        endMin: startMin + dur,
-        type,
-        title: pickTitle(type)
-      });
-    }
-  }
-  
-  console.log(`✅ Week ${week} (Curve): ${meetings.length} meetings, ${Math.round(t.density * 100)}% density`);
+  const screenCoverage = Math.round((config.maxStartMin / DAY_MINS) * 100);
+  console.log(`✅ Week ${week}: ${meetings.length} meetings, ${screenCoverage}% screen coverage`);
   return meetings;
 }
 
@@ -375,19 +260,19 @@ export function computeColumns(meetings: Meeting[]): RenderItem[] {
     dayMeetings.push(m);
     byDay.set(m.day, dayMeetings);
   });
-  
+
   const out: RenderItem[] = [];
-  
+
   for (const [, list] of byDay) {
     // Sort by start time, then by duration (longer first for better visual stacking)
-    list.sort((a, b) => 
-      a.startMin - b.startMin || 
+    list.sort((a, b) =>
+      a.startMin - b.startMin ||
       (b.endMin - b.startMin) - (a.endMin - a.startMin)
     );
-    
+
     // Active set of columns (meetings currently visible)
     const active: RenderItem[] = [];
-    
+
     for (const m of list) {
       // Expire columns for meetings that have ended
       for (let i = active.length - 1; i >= 0; i--) {
@@ -395,16 +280,16 @@ export function computeColumns(meetings: Meeting[]): RenderItem[] {
           active.splice(i, 1);
         }
       }
-      
+
       // Find first free column index
       let col = 0;
       const taken = new Set(active.map(a => a.col));
       while (taken.has(col)) col++;
-      
+
       const item: RenderItem = { ...m, col, cols: 0 };
       active.push(item);
       out.push(item);
-      
+
       // Update cols for current overlap cluster
       const maxCol = Math.max(...active.map(a => a.col));
       active.forEach(a => {
@@ -412,7 +297,7 @@ export function computeColumns(meetings: Meeting[]): RenderItem[] {
       });
     }
   }
-  
+
   return out;
 }
 

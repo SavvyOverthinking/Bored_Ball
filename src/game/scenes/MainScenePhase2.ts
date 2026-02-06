@@ -9,7 +9,7 @@ import { type MeetingType } from '@game/systems/physicsModifiers';
 import { PHYSICS, SCORING } from '@config/constants';
 import { sound } from '@game/systems/soundEffects';
 import { gameEventBus } from '@game/systems/GameEventBus';
-import type { LevelTuning } from '@game/utils/levelCurve';
+import { curve, type LevelTuning } from '@game/utils/levelCurve';
 import { startWeek } from '@game/utils/phase2Router';
 import { POWERUPS, POWERUP_CONFIG, getRandomPowerUp, type PowerUpKind } from '@game/objects/powerups';
 import { generateWeek, computeColumns, type Meeting } from '@game/utils/calendarGeneratorPhase2';
@@ -63,24 +63,10 @@ export class MainScenePhase2 extends BaseCalendarScene {
     this.score = data.score || 0;
     this.lives = data.lives || 3;
 
-    // IMPORTANT: Use curve() to get proper tuning if not provided
-    if (data.tuning) {
-      this.tuning = data.tuning;
-      console.log(`✅ Using provided tuning for week ${this.currentWeek}`);
-    } else {
-      console.warn(`⚠️ No tuning provided! Using fallback for week ${this.currentWeek}`);
-      this.tuning = {
-        week: this.currentWeek,
-        density: 0.35,
-        bossRate: 0.04,
-        teamRate: 0.10,
-        lunchRate: 0.20,
-        minBlockMins: 45,
-        ballMaxCount: 2,
-        paddleScale: 1.2,
-        baseSpeed: 220
-      };
-    }
+    // IMPORTANT: Always get tuning from curve() for proper arcade progression
+    // This ensures paddle shrinks over 10 weeks and speed increases
+    this.tuning = data.tuning || curve(this.currentWeek);
+    console.log(`✅ Week ${this.currentWeek} tuning: paddle=${this.tuning.paddleScale.toFixed(2)}, speed=${this.tuning.baseSpeed}`);
 
     this.powerUpSpawned = false;
     this.shieldActive = false;

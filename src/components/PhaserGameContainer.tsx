@@ -48,14 +48,15 @@ export const PhaserGameContainer: React.FC<PhaserGameContainerProps> = ({
 
     phaserGameRef.current = new Phaser.Game(config);
 
-    // If initial scene data is provided, start the first scene with it
+    // If initial scene data is provided, restart the first scene with data
     if (initialSceneData && scenes.length > 0) {
       phaserGameRef.current.events.once('ready', () => {
-        // Get scene key from the first scene class
-        const FirstScene = scenes[0];
-        const tempInstance = new FirstScene();
-        const sceneKey = tempInstance.sys?.settings?.key || 'default';
+        // The scene key is 'CalendarScenePhase2' (from MainScenePhase2 constructor)
+        // Phaser auto-starts the first scene, but without data
+        // We need to restart it with our initial data
+        const sceneKey = 'CalendarScenePhase2';
 
+        console.log('🎮 Starting scene with data:', initialSceneData);
         phaserGameRef.current?.scene.start(sceneKey, initialSceneData);
       });
     }

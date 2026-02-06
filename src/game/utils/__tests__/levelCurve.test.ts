@@ -11,19 +11,24 @@ describe('levelCurve', () => {
       expect(tooHigh.week).toBe(52);
     });
 
-    it('returns static tuning for weeks 1-20', () => {
+    it('progressively increases difficulty from weeks 1-20', () => {
       const week1 = curve(1);
       const week10 = curve(10);
       const week20 = curve(20);
 
-      // All early weeks should have same base values
-      expect(week1.density).toBe(0.35);
-      expect(week10.density).toBe(0.35);
-      expect(week20.density).toBe(0.35);
+      // Density increases through early weeks
+      expect(week1.density).toBe(0.32);
+      expect(week10.density).toBe(0.50);
+      expect(week20.density).toBe(0.70);
 
-      expect(week1.paddleScale).toBe(1.2);
-      expect(week1.baseSpeed).toBe(220);
+      // Week 1: Big paddle, slow ball (arcade start)
+      expect(week1.paddleScale).toBe(1.4);
+      expect(week1.baseSpeed).toBe(200);
       expect(week1.ballMaxCount).toBe(2);
+
+      // Week 10: Paddle and speed reach plateau
+      expect(week10.paddleScale).toBe(0.9);
+      expect(week10.baseSpeed).toBe(280);
     });
 
     it('progressively increases difficulty from week 21 to 52', () => {
@@ -31,19 +36,19 @@ describe('levelCurve', () => {
       const week36 = curve(36);
       const week52 = curve(52);
 
-      // Density increases
-      expect(week21.density).toBeCloseTo(0.35 + 0.45 * (1 / 32), 2);
+      // Density increases (0.50 + 0.30 * t)
+      expect(week21.density).toBeCloseTo(0.50 + 0.30 * (1 / 32), 2);
       expect(week52.density).toBeCloseTo(0.80, 2);
       expect(week36.density).toBeGreaterThan(week21.density);
       expect(week52.density).toBeGreaterThan(week36.density);
 
       // Boss rate increases
-      expect(week52.bossRate).toBeCloseTo(0.14, 2);
+      expect(week52.bossRate).toBeCloseTo(0.15, 2);
       expect(week52.bossRate).toBeGreaterThan(week21.bossRate);
 
-      // Paddle scale decreases (harder)
-      expect(week52.paddleScale).toBeCloseTo(0.85, 2);
-      expect(week52.paddleScale).toBeLessThan(week21.paddleScale);
+      // Paddle scale stays at plateau (0.9 for all weeks 10+)
+      expect(week52.paddleScale).toBe(0.9);
+      expect(week21.paddleScale).toBe(0.9);
 
       // Ball speed increases
       expect(week52.baseSpeed).toBe(300);
@@ -51,7 +56,7 @@ describe('levelCurve', () => {
 
       // Ball max count increases
       expect(week52.ballMaxCount).toBe(4);
-      expect(week52.ballMaxCount).toBeGreaterThan(week21.ballMaxCount);
+      expect(week52.ballMaxCount).toBeGreaterThanOrEqual(week21.ballMaxCount);
 
       // Lunch rate decreases (less relief)
       expect(week52.lunchRate).toBeCloseTo(0.10, 2);
@@ -86,16 +91,16 @@ describe('levelCurve', () => {
       for (let week = 1; week <= 52; week++) {
         const t = curve(week);
 
-        expect(t.density).toBeGreaterThanOrEqual(0.35);
+        expect(t.density).toBeGreaterThanOrEqual(0.30);
         expect(t.density).toBeLessThanOrEqual(0.80);
 
-        expect(t.bossRate).toBeGreaterThanOrEqual(0.04);
-        expect(t.bossRate).toBeLessThanOrEqual(0.14);
+        expect(t.bossRate).toBeGreaterThanOrEqual(0);
+        expect(t.bossRate).toBeLessThanOrEqual(0.16);
 
-        expect(t.paddleScale).toBeGreaterThanOrEqual(0.85);
-        expect(t.paddleScale).toBeLessThanOrEqual(1.2);
+        expect(t.paddleScale).toBeGreaterThanOrEqual(0.9);
+        expect(t.paddleScale).toBeLessThanOrEqual(1.4);
 
-        expect(t.baseSpeed).toBeGreaterThanOrEqual(220);
+        expect(t.baseSpeed).toBeGreaterThanOrEqual(200);
         expect(t.baseSpeed).toBeLessThanOrEqual(300);
 
         expect(t.ballMaxCount).toBeGreaterThanOrEqual(2);
@@ -126,8 +131,8 @@ describe('levelCurve', () => {
       const week10 = estimatedMinutes(10);
       const week52 = estimatedMinutes(52);
 
-      // Week 10: 0.35 * 10 = 3.5 minutes (no late-game bonus)
-      expect(week10).toBe(4);
+      // Week 10: 0.50 * 10 = 5 minutes (no late-game bonus)
+      expect(week10).toBe(5);
 
       // Week 52: 0.80 * 10 + 3 = 11 minutes (with late-game bonus)
       expect(week52).toBe(11);

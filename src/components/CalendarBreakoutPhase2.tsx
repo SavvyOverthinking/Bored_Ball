@@ -1,24 +1,17 @@
 import { PhaserGameContainer } from './PhaserGameContainer';
 import { MainScenePhase2 } from '@game/scenes/MainScenePhase2';
 import WeekendStageScene from '@game/scenes/WeekendStageScene';
+import { curve } from '@game/utils/levelCurve';
 import FLAGS from '@config/flags';
 
 export function CalendarBreakoutPhase2() {
+  // Get proper tuning from curve function for week 1
+  // This ensures paddle scale and speed are correct for arcade progression
   const initialSceneData = {
-    week: 1, // ALWAYS week 1
+    week: 1,
     score: 0,
     lives: 3,
-    tuning: {
-      week: 1,
-      density: 0.35,
-      bossRate: 0.04,
-      teamRate: 0.10,
-      lunchRate: 0.20,
-      minBlockMins: 45,
-      ballMaxCount: 2,
-      paddleScale: 1.2,
-      baseSpeed: 220
-    }
+    tuning: curve(1) // Week 1: Big paddle (1.4x), slow ball (200 px/s)
   };
 
   return (

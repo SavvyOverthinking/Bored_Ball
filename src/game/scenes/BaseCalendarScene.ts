@@ -52,18 +52,32 @@ export abstract class BaseCalendarScene extends Phaser.Scene {
   }
 
   /**
-   * Initialize scene - emit initial state via event bus
+   * Initialize scene - reset all state and emit initial values via event bus
    */
   init(_data: Record<string, unknown> = {}) {
-    // Reset combo on scene init
+    // CRITICAL: Reset all game state for fresh start
+    this.gameStarted = false;
+    this.gameOver = false;
+    this.isPaused = false;
+    this.isCountingDown = false;
+    this.escapePressed = false;
+    this.pointerLocked = false;
+    this.stuckCheckCounter = 0;
+
+    // Reset combo
     this.comboManager = new ComboManager();
+
+    // Clear tracking maps
+    this.ballPositionHistory.clear();
+    this.ballCorrectionCooldown.clear();
+    this.blockHitPoints.clear();
 
     // Emit initial state via event bus
     gameEventBus.emitGameEvent('SCORE_UPDATE', { score: this.score });
     gameEventBus.emitGameEvent('LIVES_UPDATE', { lives: this.lives });
     gameEventBus.emitGameEvent('WEEK_UPDATE', { week: this.currentWeek });
-    gameEventBus.emitGameEvent('GAME_PAUSE', { isPaused: this.isPaused });
-    gameEventBus.emitGameEvent('GAME_OVER', { gameOver: this.gameOver });
+    gameEventBus.emitGameEvent('GAME_PAUSE', { isPaused: false });
+    gameEventBus.emitGameEvent('GAME_OVER', { gameOver: false });
     gameEventBus.emitGameEvent('POWERUP_STATUS', { status: null });
     gameEventBus.emitGameEvent('COMBO_UPDATE', { combo: 0, multiplier: 1 });
   }
