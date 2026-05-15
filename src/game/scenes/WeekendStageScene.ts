@@ -1,6 +1,6 @@
 /**
  * Weekend Email Dodge - Bonus Stage
- * Appears every 5th week (5, 10, 15, 20, ...)
+ * Appears after every 5th cleared calendar week (5, 10, 15, 20, ...)
  * Survive 30 seconds without touching falling emails
  */
 
@@ -8,9 +8,11 @@ import Phaser from 'phaser';
 import { getBoardDimensions } from '@game/utils/calendarGenerator';
 import { sound } from '@game/systems/soundEffects';
 import { WEEKEND_STAGE } from '@config/constants';
+import { gameEventBus } from '@game/systems/GameEventBus';
 
 interface WeekendStageData {
   week: number;
+  nextWeek?: number;
   score?: number;
   lives?: number;
 }
@@ -38,6 +40,7 @@ export default class WeekendStageScene extends Phaser.Scene {
   init(data: WeekendStageData) {
     this.weekData = {
       week: data.week,
+      nextWeek: data.nextWeek || Math.min(52, data.week + 1),
       score: data.score || 0,
       lives: data.lives || 3
     };
@@ -51,6 +54,10 @@ export default class WeekendStageScene extends Phaser.Scene {
     
     // Weekend sky blue background
     this.cameras.main.setBackgroundColor('#E3F2FD');
+
+    gameEventBus.emitGameEvent('WEEK_UPDATE', { week: this.weekData.week });
+    gameEventBus.emitGameEvent('GAME_PAUSE', { isPaused: false });
+    gameEventBus.emitGameEvent('GAME_OVER', { gameOver: false });
     
     // Draw weekend UI
     this.drawWeekendUI();
@@ -405,9 +412,9 @@ export default class WeekendStageScene extends Phaser.Scene {
   }
 
   private continueToNextWeek(bonus: number) {
-    // Return to main calendar scene with bonus
+    // Return to the next calendar week with any earned weekend bonus.
     this.scene.start('CalendarScenePhase2', {
-      week: this.weekData.week,
+      week: this.weekData.nextWeek,
       score: (this.weekData.score || 0) + bonus,
       lives: this.weekData.lives,
       fromWeekendBonus: true

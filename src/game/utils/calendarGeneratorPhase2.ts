@@ -9,6 +9,7 @@
 
 import { mulberry32 } from '@game/utils/rng';
 import { type MeetingType, canAppearInWeek } from '@game/systems/physicsModifiers';
+import { curve } from '@game/utils/levelCurve';
 
 // Title templates for all meeting types
 const MEETING_TITLES: Record<MeetingType, string[]> = {
@@ -42,71 +43,94 @@ const START_HOUR = 9;
 const END_HOUR = 17;
 const DAY_MINS = (END_HOUR - START_HOUR) * 60; // 480 minutes
 
-/**
- * CLASSIC ARCADE PROGRESSION CONFIG
- * Meetings start at TOP and gradually fill down over first 10 weeks
- */
-interface ArcadeConfig {
-  maxStartMin: number;    // How far down meetings can start (0=top, 480=bottom)
-  meetingCount: number;   // Number of meetings to generate
-  minDuration: number;    // Minimum meeting duration
-  bossRate: number;       // Chance of boss meeting
-  teamRate: number;       // Chance of team meeting
+const INTRO_WEEK: Record<MeetingType, number> = {
+  personal: 1,
+  lunch: 1,
+  '1:1': 2,
+  team: 3,
+  boss: 5,
+  sticky: 7,
+  focus: 10,
+  optional: 10,
+  recurring: 14,
+  allhands: 20,
+  emergency: 26,
+};
+
+interface ProgressionConfig {
+  maxStartMin: number;
+  meetingCount: number;
+  minDuration: number;
+  overlapRate: number;
+  weights: Partial<Record<MeetingType, number>>;
+  maxPerType: Partial<Record<MeetingType, number>>;
 }
 
-function getArcadeConfig(week: number): ArcadeConfig {
-  // Classic arcade: start easy at top, get harder over 10 levels
-  if (week <= 2) {
-    // EASY: Top of screen only, few meetings
-    return {
-      maxStartMin: 120,     // Only 9am-11am area
-      meetingCount: 8 + week * 2,
-      minDuration: 60,
-      bossRate: 0,
-      teamRate: 0.1,
-    };
-  } else if (week <= 5) {
-    // MEDIUM-EASY: Top third, more meetings
-    return {
-      maxStartMin: 180,     // 9am-12pm area
-      meetingCount: 12 + (week - 2) * 3,
-      minDuration: 45,
-      bossRate: 0.02,
-      teamRate: 0.15,
-    };
-  } else if (week <= 8) {
-    // MEDIUM: Top half, introduce variety
-    return {
-      maxStartMin: 240,     // 9am-1pm area
-      meetingCount: 20 + (week - 5) * 4,
-      minDuration: 30,
-      bossRate: 0.05,
-      teamRate: 0.18,
-    };
-  } else if (week <= 10) {
-    // MEDIUM-HARD: 3/4 of screen
-    return {
-      maxStartMin: 360,     // 9am-3pm area
-      meetingCount: 30 + (week - 8) * 5,
-      minDuration: 30,
-      bossRate: 0.08,
-      teamRate: 0.20,
-    };
-  } else {
-    // HARD: Full screen (plateau) - use curve system
-    return {
-      maxStartMin: DAY_MINS - 30, // Full calendar
-      meetingCount: 45 + Math.min(week - 10, 20) * 2,
-      minDuration: 15,
-      bossRate: 0.10,
-      teamRate: 0.22,
-    };
-  }
+function roundToSlot(minutes: number): number {
+  return Math.round(minutes / 15) * 15;
+}
+
+function lerp(start: number, end: number, t: number): number {
+  return start + (end - start) * t;
+}
+
+function getMeetingCount(week: number): number {
+  if (week === 1) return 10;
+  if (week === 2) return 12;
+  if (week === 3) return 15;
+  if (week <= 5) return 15 + (week - 3) * 3; // 18 -> 21
+  if (week <= 20) return Math.round(21 + (week - 5) * 1.65); // 23 -> 46
+  return Math.round(46 + (week - 20) * 0.45); // 46 -> 60
+}
+
+function getAvailableTypes(week: number): MeetingType[] {
+  return (Object.keys(INTRO_WEEK) as MeetingType[])
+    .filter(type => week >= INTRO_WEEK[type] && canAppearInWeek(type, week));
+}
+
+function getProgressionConfig(week: number): ProgressionConfig {
+  const tuning = curve(week);
+  const coverageRamp = Math.min(1, (week - 1) / 19);
+  const maxStartMin = roundToSlot(lerp(120, DAY_MINS - tuning.minBlockMins, coverageRamp));
+  const availableTypes = getAvailableTypes(week);
+  const weights: Partial<Record<MeetingType, number>> = {};
+
+  const setWeight = (type: MeetingType, value: number) => {
+    if (availableTypes.includes(type)) {
+      weights[type] = value;
+    }
+  };
+
+  setWeight('personal', week < 6 ? 4 : 2);
+  setWeight('lunch', 2 + tuning.lunchRate * 8);
+  setWeight('1:1', 3);
+  setWeight('team', Math.max(1.2, tuning.teamRate * 10));
+  setWeight('boss', Math.max(0.8, tuning.bossRate * 12));
+  setWeight('sticky', week < 14 ? 1.4 : 0.9);
+  setWeight('focus', 0.9);
+  setWeight('optional', 1.1);
+  setWeight('recurring', 0.8);
+  setWeight('allhands', 0.35);
+  setWeight('emergency', 0.45);
+
+  return {
+    maxStartMin,
+    meetingCount: getMeetingCount(week),
+    minDuration: tuning.minBlockMins,
+    overlapRate: Math.min(0.28, Math.max(0, (week - 5) * 0.012)),
+    weights,
+    maxPerType: {
+      recurring: 4,
+      allhands: 2,
+      emergency: 3,
+    },
+  };
 }
 
 /**
  * Generate a deterministic calendar for a given week
- * CLASSIC ARCADE: Easy at top, gradually fills down
+ * Single progression model: simple onboarding, then more density, more vertical
+ * coverage, more overlaps, and more meeting behaviors over time.
  */
 export function generateWeek(week: number): Meeting[] {
   console.log(`🗓️ Generating calendar for Week ${week}...`);
@@ -115,7 +139,7 @@ export function generateWeek(week: number): Meeting[] {
     return generateWeek1Simple();
   }
 
-  return generateArcadeProgression(week);
+  return generateProgressionWeek(week);
 }
 
 /**
@@ -149,52 +173,40 @@ function generateWeek1Simple(): Meeting[] {
 }
 
 /**
- * Generate meetings with classic arcade progression
- * Blocks start at top, gradually fill down over 10 levels
+ * Generate meetings with staged complexity.
  */
-function generateArcadeProgression(week: number): Meeting[] {
+function generateProgressionWeek(week: number): Meeting[] {
   const meetings: Meeting[] = [];
   const rand = mulberry32(0xB0B0 + week);
-  const config = getArcadeConfig(week);
-
-  // Simple types for early weeks, more variety later
-  const getAvailableTypes = (): MeetingType[] => {
-    const types: MeetingType[] = ['personal', 'lunch', '1:1'];
-
-    if (week >= 3) types.push('team');
-    if (week >= 5) types.push('boss');
-    if (week >= 8) types.push('sticky');
-    if (week >= 12) types.push('focus', 'optional');
-    if (canAppearInWeek('recurring', week)) types.push('recurring');
-    if (canAppearInWeek('allhands', week)) types.push('allhands');
-    if (canAppearInWeek('emergency', week)) types.push('emergency');
-
-    return types;
-  };
-
-  const availableTypes = getAvailableTypes();
+  const config = getProgressionConfig(week);
+  const typeCounts = new Map<MeetingType, number>();
 
   const pickType = (): MeetingType => {
-    const r = rand();
+    const eligible = Object.entries(config.weights)
+      .filter(([type]) => {
+        const meetingType = type as MeetingType;
+        const max = config.maxPerType[meetingType];
+        return max === undefined || (typeCounts.get(meetingType) || 0) < max;
+      }) as Array<[MeetingType, number]>;
 
-    // Boss meetings (if available)
-    if (availableTypes.includes('boss') && r < config.bossRate) {
-      return 'boss';
+    const totalWeight = eligible.reduce((sum, [, weight]) => sum + weight, 0);
+    let roll = rand() * totalWeight;
+
+    for (const [type, weight] of eligible) {
+      roll -= weight;
+      if (roll <= 0) {
+        typeCounts.set(type, (typeCounts.get(type) || 0) + 1);
+        return type;
+      }
     }
 
-    // Team meetings (if available)
-    if (availableTypes.includes('team') && r < config.bossRate + config.teamRate) {
-      return 'team';
-    }
-
-    // Random from available types
-    const simpleTypes = availableTypes.filter(t => !['boss', 'team', 'allhands', 'emergency'].includes(t));
-    return simpleTypes[Math.floor(rand() * simpleTypes.length)] || 'personal';
+    typeCounts.set('personal', (typeCounts.get('personal') || 0) + 1);
+    return 'personal';
   };
 
   const pickDuration = (): number => {
-    const options = [30, 45, 60].filter(d => d >= config.minDuration);
-    return options[Math.floor(rand() * options.length)] || 30;
+    const options = [15, 30, 45, 60].filter(d => d >= config.minDuration);
+    return options[Math.floor(rand() * options.length)] || config.minDuration;
   };
 
   const pickTitle = (type: MeetingType): string => {
@@ -202,14 +214,22 @@ function generateArcadeProgression(week: number): Meeting[] {
     return titles[Math.floor(rand() * titles.length)];
   };
 
-  // Generate meetings - KEY: startMin is constrained to top of screen early on
   for (let i = 0; i < config.meetingCount; i++) {
-    const day = Math.floor(rand() * 5);
     const duration = pickDuration();
+    let day = Math.floor(rand() * 5);
+    let startMin: number;
 
-    // CRITICAL: Limit how far down meetings can start based on week
-    const maxStart = Math.min(config.maxStartMin, DAY_MINS - duration);
-    const startMin = Math.floor(rand() * (maxStart / 15)) * 15;
+    if (meetings.length > 0 && rand() < config.overlapRate) {
+      const source = meetings[Math.floor(rand() * meetings.length)];
+      day = source.day;
+      const offset = rand() < 0.5 ? -15 : 15;
+      const maxStart = Math.min(config.maxStartMin, DAY_MINS - duration);
+      startMin = roundToSlot(Math.max(0, Math.min(maxStart, source.startMin + offset)));
+    } else {
+      const maxStart = Math.min(config.maxStartMin, DAY_MINS - duration);
+      const slotCount = Math.max(1, Math.floor(maxStart / 15) + 1);
+      startMin = Math.floor(rand() * slotCount) * 15;
+    }
 
     const type = pickType();
 
@@ -220,27 +240,6 @@ function generateArcadeProgression(week: number): Meeting[] {
       type,
       title: pickTitle(type)
     });
-  }
-
-  // Add some overlaps for later weeks (double bookings)
-  if (week >= 6) {
-    const overlapCount = Math.min(Math.floor((week - 5) * 0.8), 8);
-    for (let i = 0; i < overlapCount; i++) {
-      const source = meetings[Math.floor(rand() * meetings.length)];
-      if (source) {
-        const duration = pickDuration();
-        const offset = rand() < 0.5 ? -15 : 15;
-        const startMin = Math.max(0, Math.min(config.maxStartMin - duration, source.startMin + offset));
-
-        meetings.push({
-          day: source.day,
-          startMin,
-          endMin: startMin + duration,
-          type: pickType(),
-          title: pickTitle(pickType())
-        });
-      }
-    }
   }
 
   const screenCoverage = Math.round((config.maxStartMin / DAY_MINS) * 100);

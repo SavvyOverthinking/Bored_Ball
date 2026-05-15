@@ -2,23 +2,25 @@
  * Phase 2 Router
  * Manages week transitions and determines which scene to show
  * - Regular weeks: CalendarScenePhase2
- * - Every 5th week: WeekendStageScene (bonus)
+ * - Every 5th completed calendar week: WeekendStageScene bonus
  */
 
 import { curve, type LevelTuning } from '@game/utils/levelCurve';
 
 /**
- * Check if a week is a bonus weekend week
+ * Check if clearing this calendar week should trigger a weekend bonus.
  */
 export const isBonusWeek = (week: number): boolean => {
   return week > 0 && week % 5 === 0;
 };
 
 /**
- * Get the appropriate scene key for a week
+ * Get the primary scene key for a calendar week.
+ * Weekend stages are routed after a qualifying week is cleared, not instead of
+ * that week's calendar board.
  */
-export const getSceneForWeek = (week: number): string => {
-  return isBonusWeek(week) ? 'WeekendStageScene' : 'CalendarScenePhase2';
+export const getSceneForWeek = (_week: number): string => {
+  return 'CalendarScenePhase2';
 };
 
 /**
@@ -32,26 +34,32 @@ interface AdditionalSceneData {
 
 /**
  * Start the appropriate scene for a given week
- * Handles routing between calendar and weekend bonus stages
  */
 export function startWeek(scene: Phaser.Scene, week: number, additionalData: AdditionalSceneData = {}) {
-  if (isBonusWeek(week)) {
-    // Weekend Bonus Stage
-    console.log(`🌴 Week ${week} - WEEKEND BONUS STAGE!`);
-    scene.scene.start('WeekendStageScene', {
-      week,
-      ...additionalData
-    });
-  } else {
-    // Regular Calendar Week with tuning
-    const tuning = curve(week);
-    console.log(`📅 Week ${week} - Difficulty: ${getDifficultyName(week)}`);
-    scene.scene.start('CalendarScenePhase2', {
-      week,
-      tuning,
-      ...additionalData
-    });
-  }
+  const tuning = curve(week);
+  console.log(`📅 Week ${week} - Difficulty: ${getDifficultyName(week)}`);
+  scene.scene.start('CalendarScenePhase2', {
+    week,
+    tuning,
+    ...additionalData
+  });
+}
+
+/**
+ * Start the weekend bonus awarded after a calendar week is cleared.
+ */
+export function startWeekendBonus(
+  scene: Phaser.Scene,
+  completedWeek: number,
+  nextWeek: number,
+  additionalData: AdditionalSceneData = {}
+) {
+  console.log(`🌴 Week ${completedWeek} cleared - WEEKEND BONUS STAGE!`);
+  scene.scene.start('WeekendStageScene', {
+    week: completedWeek,
+    nextWeek,
+    ...additionalData
+  });
 }
 
 /**
@@ -91,7 +99,7 @@ export const getTuningForWeek = (week: number): LevelTuning => {
  */
 export const PHASE2_FLOW = {
   TOTAL_WEEKS: 52,
-  BONUS_FREQUENCY: 5,     // Every 5th week
+  BONUS_FREQUENCY: 5,     // After every 5th cleared calendar week
   INTRO_WEEKS: 5,         // Weeks 1-5 are easier
   STARTING_LIVES: 3,
   STARTING_SCORE: 0
@@ -115,7 +123,7 @@ export const getAllBonusWeeks = (): number[] => {
  */
 export const formatWeekDisplay = (week: number): string => {
   if (isBonusWeek(week)) {
-    return `Week ${week} 🌴 WEEKEND BONUS`;
+    return `Week ${week} / 52 + weekend bonus`;
   }
   return `Week ${week} / 52`;
 };
@@ -124,6 +132,7 @@ export default {
   isBonusWeek,
   getSceneForWeek,
   startWeek,
+  startWeekendBonus,
   getDifficultyName,
   getNextWeek,
   isFinalWeek,

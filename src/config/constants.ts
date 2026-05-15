@@ -18,7 +18,7 @@ export const PHYSICS = {
   PADDLE_WIDTH: 140,
   PADDLE_HEIGHT: 16,
   BALL_RADIUS: 8,
-  MAX_BALLS: 3,
+  MAX_BALLS: 4,
 };
 
 export const WORK_HOURS = {

@@ -25,7 +25,7 @@ function App() {
           </div>
           <div className="bg-white p-3 rounded-lg shadow-sm">
             <div className="font-semibold text-blue-600 mb-1">🌴 Weekend Bonus</div>
-            <div className="text-gray-600 text-xs">Every 5th week: Email Dodge challenge for bonus points</div>
+            <div className="text-gray-600 text-xs">After every 5th cleared week: Email Dodge challenge for bonus points</div>
           </div>
           <div className="bg-white p-3 rounded-lg shadow-sm">
             <div className="font-semibold text-orange-600 mb-1">🎯 Progressive Difficulty</div>

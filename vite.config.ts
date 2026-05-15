@@ -5,9 +5,23 @@ import { resolve } from 'path'
 // Check if Phase 2 is enabled
 const isPhase2 = process.env.VITE_PHASE2 === '1';
 
+const phase2DevRootPlugin = () => ({
+  name: 'phase2-dev-root',
+  configureServer(server) {
+    if (!isPhase2) return;
+
+    server.middlewares.use((req, _res, next) => {
+      if (req.url === '/Bored_Ball/' || req.url === '/Bored_Ball') {
+        req.url = '/Bored_Ball/index-phase2.html';
+      }
+      next();
+    });
+  },
+});
+
 // https://vitejs.dev/config/
 export default defineConfig({
-  plugins: [react()],
+  plugins: [phase2DevRootPlugin(), react()],
   base: '/Bored_Ball/',
   resolve: {
     alias: {

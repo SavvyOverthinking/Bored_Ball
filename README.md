@@ -30,8 +30,8 @@ Clear your Outlook calendar by destroying all meetings with physics-based gamepl
 ✨ **Outlook-Inspired Design** - Authentic Microsoft calendar aesthetic  
 🎯 **52-Week Campaign** - Clear an entire year of meetings  
 ⚡ **Progressive Difficulty** - Gentle start, brutal endgame (Phase 2)  
-🎮 **Weekly Power-ups** - 5 different power-ups to help you survive  
-🏖️ **Weekend Bonus Stages** - Email dodge challenges every 5 weeks  
+🎮 **Weekly Power-ups** - 6 different power-ups to help you survive
+🏖️ **Weekend Bonus Stages** - Email dodge challenges after every 5th cleared week
 ⚡ **Physics Effects** - Each meeting type modifies gameplay  
 📊 **Multi-Hit Blocks** - Boss meetings require 3 hits to destroy  
 🎨 **Theme Support** - Outlook, Google Calendar, or default themes  
@@ -118,7 +118,7 @@ npm run preview
 
 ### 🎮 Power-ups (Phase 2)
 
-Weekly power-ups spawn 8-16 seconds into each week. Collect by hitting with the ball!
+Weekly power-ups spawn 8-16 seconds after the ball launches, so they never expire on the splash screen. Collect by hitting them with the ball.
 
 | Power-up | Effect | Duration |
 |----------|--------|----------|
@@ -126,7 +126,8 @@ Weekly power-ups spawn 8-16 seconds into each week. Collect by hitting with the 
 | 🍻 **Happy Hour** | Wide paddle (1.4× size) | 30 seconds |
 | 🛡️ **DND** | Free shield (blocks next life loss) | Until used |
 | 📅 **Reschedule** | Clears all meetings in current hour | Instant |
-| 🧹 **Cleanup** | Softens 3 meetings to lunch breaks | Instant |
+| 🧹 **Cleanup** | Converts 3 meetings into real lunch breaks | Instant |
+| 💥 **Multi-Ball** | Spawns 2 extra balls | Instant |
 
 **Note:** Only ONE power-up spawns per week!
 
@@ -214,7 +215,7 @@ The game currently uses code-drawn graphics. For Outlook-authentic sprites:
 - [ ] Paddle follows mouse/touch
 - [ ] Blocks require correct number of hits
 - [ ] Ball speed clamped (doesn't go infinite)
-- [ ] Max 3 balls enforced (team meetings)
+- [ ] Tuned max balls enforced (2 early, up to 4 late game)
 - [ ] Week progression works (1 → 52)
 - [ ] Score persists across weeks
 - [ ] Lives system functional
@@ -277,15 +278,15 @@ This project uses **pre-built deployment** to avoid CI build issues.
 
 ### ✅ Phase 2 Features (Implemented!)
 - [x] Progressive difficulty curve (weeks 1-52)
-- [x] Weekly power-ups (5 types)
-- [x] Weekend bonus stages (every 5th week)
+- [x] Weekly power-ups (6 types)
+- [x] Weekend bonus stages (after every 5th cleared week)
 - [x] Gentler early game (weeks 1-5)
 - [x] Difficulty scaling (gets brutal by week 52!)
 
 ### Phase 3 - Planned Features
 - [ ] Sound effects (paddle hit, block destroy)
 - [ ] Particle effects on block destruction
-- [ ] Additional power-ups (multiball, laser, etc.)
+- [ ] Additional power-ups (laser, slow motion, etc.)
 - [ ] Local high score persistence
 - [ ] Mobile touch optimization
 - [ ] Achievements system

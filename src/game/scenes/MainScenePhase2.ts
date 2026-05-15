@@ -5,14 +5,14 @@
  */
 
 import { getCalendarGridConfig, getBoardDimensions } from '@game/utils/calendarGenerator';
-import { type MeetingType } from '@game/systems/physicsModifiers';
+import { getDefaultHitPoints, type MeetingType } from '@game/systems/physicsModifiers';
 import { PHYSICS, SCORING } from '@config/constants';
 import { sound } from '@game/systems/soundEffects';
 import { gameEventBus } from '@game/systems/GameEventBus';
 import { curve, type LevelTuning } from '@game/utils/levelCurve';
-import { startWeek } from '@game/utils/phase2Router';
+import { isBonusWeek, startWeek, startWeekendBonus } from '@game/utils/phase2Router';
 import { POWERUPS, POWERUP_CONFIG, getRandomPowerUp, type PowerUpKind } from '@game/objects/powerups';
-import { generateWeek, computeColumns, type Meeting } from '@game/utils/calendarGeneratorPhase2';
+import { generateWeek, computeColumns, type Meeting, type RenderItem } from '@game/utils/calendarGeneratorPhase2';
 import type { PhaserBall, PhaserBlock, GameObjectWithData, PowerUpContainer } from '@/types/game';
 import { BaseCalendarScene } from './BaseCalendarScene';
 
@@ -30,6 +30,13 @@ export class MainScenePhase2 extends BaseCalendarScene {
   private powerUpSpawned: boolean = false;
   protected shieldActive: boolean = false; // Changed to protected for BaseCalendarScene
   private powerUpIcon?: PowerUpContainer;
+  private powerUpSpawnEvent?: Phaser.Time.TimerEvent;
+  private coffeeEvent?: Phaser.Time.TimerEvent;
+  private coffeeActive: boolean = false;
+  private focusBonusEvent?: Phaser.Time.TimerEvent;
+  private focusBonusActive: boolean = false;
+  private followUpCounter: number = 0;
+  private emergencyTimers: Map<string, Phaser.Time.TimerEvent> = new Map();
   // private powerUpStatusText?: Phaser.GameObjects.Text; // Removed
 
   constructor() {
@@ -70,6 +77,10 @@ export class MainScenePhase2 extends BaseCalendarScene {
 
     this.powerUpSpawned = false;
     this.shieldActive = false;
+    this.coffeeActive = false;
+    this.focusBonusActive = false;
+    this.followUpCounter = 0;
+    this.emergencyTimers.clear();
 
     console.log(`📈 Week ${this.currentWeek} Tuning Applied:`, this.tuning);
     console.log(`📊 Expected: ${Math.round(this.tuning.density * 100)}% density, ${this.tuning.ballMaxCount} max balls, ${this.tuning.baseSpeed} px/s speed`);
@@ -88,13 +99,17 @@ export class MainScenePhase2 extends BaseCalendarScene {
     // Phase 2: Add power-up status text // Removed
     // this.createPowerUpUI(); // Removed
 
-    // Phase 2: Schedule power-up spawn
-    this.schedulePowerUpSpawn();
+    // Power-ups are scheduled after the ball launches so they cannot expire on
+    // the splash screen.
   }
 
   update() {
     // Call base update with paddle velocity reset
     this.baseUpdate();
+
+    if (this.coffeeActive) {
+      this.stabilizeActiveBallSpeeds();
+    }
 
     // Phase 2: Check for power-up collision
     if (this.gameStarted && !this.gameOver && !this.isPaused && this.powerUpIcon) {
@@ -118,88 +133,95 @@ export class MainScenePhase2 extends BaseCalendarScene {
     const meetings = generateWeek(this.currentWeek);
     const renderItems = computeColumns(meetings);
 
-    const config = getCalendarGridConfig();
-    const START_HOUR = 9;
-    const END_HOUR = 17;
-    const DAY_MINS = (END_HOUR - START_HOUR) * 60;
-
-    // Use theme colors from base class (supports ?theme=google URL parameter)
-    const getColorForType = (type: MeetingType) => this.getColorForMeetingType(type);
-
     renderItems.forEach((item, index) => {
       const blockId = `meeting-${this.currentWeek}-${index}`;
-
-      const dayX = config.padding + item.day * (config.columnWidth + config.columnGap);
-      const yPerMin = config.gridHeight / DAY_MINS;
-
-      const bandTop = config.headerHeight + item.startMin * yPerMin;
-      const bandBot = config.headerHeight + item.endMin * yPerMin;
-
-      const fullW = config.columnWidth - 6;
-      const w = (fullW / item.cols) - 4;
-      const x = dayX + (fullW / item.cols) * item.col + w / 2 + 4;
-      const y = (bandTop + bandBot) / 2;
-      const h = Math.max(20, bandBot - bandTop - 4);
-
-      const color = getColorForType(item.type);
-
-      const blockRect = this.add.rectangle(x, y, w, h, color, 0.85);
-      blockRect.setStrokeStyle(1, 0xffffff, 0.2);
-      this.blocks.add(blockRect);
-
-      const block = blockRect as PhaserBlock;
-      block.setData('meetingType', item.type);
-      block.setData('blockId', blockId);
-
-      // Create left accent bar
-      const accentBar = this.add.rectangle(x - w / 2 + 2, y, 3, h, color, 1.0);
-      accentBar.setData('blockId', blockId);
-      accentBar.setDepth(2);
-
-      // Initialize hit points
-      const hitPoints = item.title === 'Onboarding' ? 1 : this.getHitPointsForMeeting(item.type);
-      this.blockHitPoints.set(blockId, hitPoints);
-
-      // Add title text (if block is tall enough)
-      if (h > 18) {
-        const fontSize = h > 30 ? '10px' : '8px';
-        const text = this.add.text(
-          x - w / 2 + 6,
-          y - h / 2 + 3,
-          item.title || 'Meeting',
-          {
-            fontFamily: 'Segoe UI, Inter, sans-serif',
-            fontSize,
-            color: '#ffffff',
-            fontStyle: '600',
-            align: 'left',
-            wordWrap: { width: w - 10 },
-          }
-        ).setOrigin(0, 0);
-
-        text.setData('blockId', blockId);
-        text.setDepth(5);
-      }
-
-      this.blockDataMap.set(blockId, item);
+      this.createMeetingBlock(item, blockId);
     });
 
     console.log(`✨ Phase 2: Generated ${meetings.length} meetings for week ${this.currentWeek}`);
     console.log(`📊 Render stats: ${renderItems.length} blocks (including ${renderItems.filter(r => r.cols > 1).length} in double-bookings)`);
   }
 
+  private createMeetingBlock(item: RenderItem, blockId: string): PhaserBlock {
+    const config = getCalendarGridConfig();
+    const START_HOUR = 9;
+    const END_HOUR = 17;
+    const DAY_MINS = (END_HOUR - START_HOUR) * 60;
+
+    const dayX = config.padding + item.day * (config.columnWidth + config.columnGap);
+    const yPerMin = config.gridHeight / DAY_MINS;
+
+    const bandTop = config.headerHeight + item.startMin * yPerMin;
+    const bandBot = config.headerHeight + item.endMin * yPerMin;
+
+    const fullW = config.columnWidth - 6;
+    const w = (fullW / item.cols) - 4;
+    const x = dayX + (fullW / item.cols) * item.col + w / 2 + 4;
+    const y = (bandTop + bandBot) / 2;
+    const h = Math.max(20, bandBot - bandTop - 4);
+    const color = this.getColorForMeetingType(item.type);
+
+    const blockRect = this.add.rectangle(x, y, w, h, color, 0.85);
+    blockRect.setStrokeStyle(1, 0xffffff, 0.2);
+    this.blocks.add(blockRect);
+
+    const block = blockRect as PhaserBlock;
+    block.setData('meetingType', item.type);
+    block.setData('blockId', blockId);
+
+    const accentBar = this.add.rectangle(x - w / 2 + 2, y, 3, h, color, 1.0);
+    accentBar.setData('blockId', blockId);
+    accentBar.setData('blockChildType', 'accent');
+    accentBar.setDepth(2);
+
+    const hitPoints = item.title === 'Onboarding' ? 1 : this.getHitPointsForMeeting(item.type);
+    this.blockHitPoints.set(blockId, hitPoints);
+
+    if (h > 18) {
+      const fontSize = h > 30 ? '10px' : '8px';
+      const text = this.add.text(
+        x - w / 2 + 6,
+        y - h / 2 + 3,
+        item.title || 'Meeting',
+        {
+          fontFamily: 'Segoe UI, Inter, sans-serif',
+          fontSize,
+          color: '#ffffff',
+          fontStyle: '600',
+          align: 'left',
+          wordWrap: { width: w - 10 },
+        }
+      ).setOrigin(0, 0);
+
+      text.setData('blockId', blockId);
+      text.setData('blockChildType', 'label');
+      text.setDepth(5);
+    }
+
+    if (item.type === 'emergency') {
+      const warning = this.add.text(x + w / 2 - 14, y - h / 2 + 3, '8s', {
+        fontFamily: 'Segoe UI, Inter, sans-serif',
+        fontSize: '9px',
+        color: '#ffffff',
+        fontStyle: '700',
+        backgroundColor: '#7f1d1d',
+        padding: { x: 3, y: 1 },
+      }).setOrigin(0.5, 0);
+
+      warning.setData('blockId', blockId);
+      warning.setData('blockChildType', 'timer');
+      warning.setDepth(6);
+    }
+
+    this.blockDataMap.set(blockId, item);
+    return block;
+  }
+
   /**
    * Get hit points for meeting type (Phase 2 implementation)
    */
   protected getHitPointsForMeeting(type: MeetingType): number {
-    switch (type) {
-      case 'boss': return 3;
-      case 'team': return 2;
-      case '1:1': return 2;
-      case 'lunch': return 1;
-      case 'personal': return 1;
-      default: return 2;
-    }
+    return getDefaultHitPoints(type);
   }
 
   /**
@@ -324,6 +346,9 @@ export class MainScenePhase2 extends BaseCalendarScene {
       );
       console.log(`⚡ Phase 2 Ball speed: ${speed} px/s`);
     }
+
+    this.armEmergencyTimers();
+    this.schedulePowerUpSpawn();
   }
 
   /**
@@ -345,12 +370,13 @@ export class MainScenePhase2 extends BaseCalendarScene {
    * Handle week transition (Phase 2: uses router)
    */
   protected handleNextWeek() {
-    this.currentWeek++;
+    const completedWeek = this.currentWeek;
+    const nextWeek = completedWeek + 1;
     this.gameStarted = false;
     this.gameOver = false;
 
     // Update React UI via event bus
-    gameEventBus.emitGameEvent('WEEK_UPDATE', { week: this.currentWeek });
+    gameEventBus.emitGameEvent('WEEK_UPDATE', { week: nextWeek });
     gameEventBus.emitGameEvent('GAME_PAUSE', { isPaused: false });
     gameEventBus.emitGameEvent('GAME_OVER', { gameOver: false });
     gameEventBus.emitGameEvent('POWERUP_STATUS', { status: null });
@@ -362,12 +388,21 @@ export class MainScenePhase2 extends BaseCalendarScene {
     this.blocks.clear(true, true);
     this.blockDataMap.clear();
     this.blockHitPoints.clear();
+    this.clearTransientEffects();
 
     this.physics.world.colliders.destroy();
     this.hideOverlay();
 
+    if (isBonusWeek(completedWeek) && nextWeek <= this.totalWeeks) {
+      startWeekendBonus(this, completedWeek, nextWeek, {
+        score: this.score,
+        lives: this.lives,
+      });
+      return;
+    }
+
     // Phase 2: Use router for week transitions
-    startWeek(this, this.currentWeek, {
+    startWeek(this, nextWeek, {
       score: this.score,
       lives: this.lives,
     });
@@ -401,18 +436,138 @@ Click to restart from Week 1`);
     });
   }
 
+  protected onBlockDestroyed(block: PhaserBlock, blockId: string, meetingType: MeetingType): void {
+    const meeting = this.blockDataMap.get(blockId);
+
+    this.emergencyTimers.get(blockId)?.remove(false);
+    this.emergencyTimers.delete(blockId);
+    this.blockDataMap.delete(blockId);
+
+    if (meetingType === 'recurring' && meeting) {
+      this.spawnRecurringFollowUp(meeting);
+    }
+
+    if (meetingType === 'allhands') {
+      this.damageAdjacentBlocks(block.x, block.y, blockId);
+    }
+  }
+
+  private spawnRecurringFollowUp(source: Meeting) {
+    const duration = 30;
+    const startMin = source.endMin + duration <= 480
+      ? source.endMin
+      : Math.max(0, source.startMin - duration);
+
+    const followUp: RenderItem = {
+      day: source.day,
+      startMin,
+      endMin: startMin + duration,
+      type: '1:1',
+      title: 'Follow-up',
+      col: 0,
+      cols: 1,
+    };
+
+    const blockId = `meeting-${this.currentWeek}-followup-${++this.followUpCounter}`;
+    this.createMeetingBlock(followUp, blockId);
+    this.showDevToast('Recurring meeting added a follow-up');
+  }
+
+  private damageAdjacentBlocks(sourceX: number, sourceY: number, sourceBlockId: string) {
+    const nearbyBlocks = this.blocks.getChildren()
+      .map(blockObj => blockObj as PhaserBlock)
+      .filter(block => {
+        if (!block.active) return false;
+        if (block.getData('blockId') === sourceBlockId) return false;
+        return Phaser.Math.Distance.Between(sourceX, sourceY, block.x, block.y) <= 135;
+      })
+      .slice(0, 4);
+
+    nearbyBlocks.forEach((block) => {
+      const blockId = block.getData('blockId');
+      const meetingType = block.getData('meetingType');
+      const currentHP = this.blockHitPoints.get(blockId) || 1;
+      this.applyBlockDamage(block, blockId, meetingType, currentHP, currentHP - 1, 0.5);
+    });
+
+    if (nearbyBlocks.length > 0) {
+      this.showDevToast(`All-hands damaged ${nearbyBlocks.length} nearby meetings`);
+    }
+  }
+
+  private armEmergencyTimers() {
+    this.blocks.getChildren().forEach((blockObj) => {
+      const block = blockObj as PhaserBlock;
+      const blockId = block.getData('blockId');
+      if (block.getData('meetingType') !== 'emergency') return;
+      if (this.emergencyTimers.has(blockId)) return;
+
+      const timer = this.time.delayedCall(8000, () => {
+        this.triggerEmergencyPenalty(blockId);
+      });
+      this.emergencyTimers.set(blockId, timer);
+    });
+  }
+
+  private triggerEmergencyPenalty(blockId: string) {
+    if (!this.blockHitPoints.has(blockId) || this.gameOver) return;
+
+    this.emergencyTimers.delete(blockId);
+    this.lives--;
+    this.updateLives();
+    sound.lifeLost();
+    this.showDevToast('Emergency meeting missed: -1 life');
+
+    const block = this.blocks.getChildren()
+      .map(blockObj => blockObj as PhaserBlock)
+      .find(candidate => candidate.getData('blockId') === blockId);
+
+    if (block?.active) {
+      this.tweens.add({
+        targets: block,
+        alpha: 0.25,
+        duration: 120,
+        yoyo: true,
+        repeat: 4,
+      });
+    }
+
+    if (this.lives <= 0) {
+      this.loseGameBase();
+    }
+  }
+
+  private clearTransientEffects() {
+    this.powerUpSpawnEvent?.remove(false);
+    this.powerUpSpawnEvent = undefined;
+    this.coffeeEvent?.remove(false);
+    this.coffeeEvent = undefined;
+    this.focusBonusEvent?.remove(false);
+    this.focusBonusEvent = undefined;
+    this.emergencyTimers.forEach(timer => timer.remove(false));
+    this.emergencyTimers.clear();
+    this.powerUpIcon?.destroy();
+    this.powerUpIcon = undefined;
+    this.coffeeActive = false;
+    this.focusBonusActive = false;
+    this.hidePowerUpStatus();
+  }
+
   // ========== PHASE 2: POWER-UP METHODS ==========
 
   private schedulePowerUpSpawn() {
-    if (this.powerUpSpawned) return;
+    if (this.powerUpSpawned || this.powerUpSpawnEvent) return;
 
     const delay = Phaser.Math.Between(
       POWERUP_CONFIG.MIN_SPAWN_DELAY,
       POWERUP_CONFIG.MAX_SPAWN_DELAY
     );
 
-    this.time.delayedCall(delay, () => {
-      this.spawnWeeklyPowerUp();
+    this.powerUpSpawnEvent = this.time.delayedCall(delay, () => {
+      this.powerUpSpawnEvent = undefined;
+      if (this.gameStarted && !this.gameOver && !this.isPaused) {
+        this.spawnWeeklyPowerUp();
+      }
     });
   }
 
@@ -447,6 +602,8 @@ Click to restart from Week 1`);
     this.powerUpIcon = container as PowerUpContainer;
     const body = this.powerUpIcon.body;
     body.setCircle(POWERUP_CONFIG.PICKUP_RADIUS);
+    body.setAllowGravity(false);
+    body.setImmovable(true);
 
     this.tweens.add({
       targets: this.powerUpIcon,
@@ -489,29 +646,52 @@ Click to restart from Week 1`);
 
   public applyCoffee(duration: number) {
     this.showPowerUpStatus('☕ Coffee Active');
+    this.coffeeActive = true;
+    this.coffeeEvent?.remove(false);
 
-    this.time.addEvent({
+    this.coffeeEvent = this.time.addEvent({
       delay: duration,
       callback: () => {
+        this.coffeeActive = false;
+        this.coffeeEvent = undefined;
         this.hidePowerUpStatus();
       }
     });
   }
 
+  private stabilizeActiveBallSpeeds() {
+    const targetSpeed = Phaser.Math.Clamp(this.tuning.baseSpeed, PHYSICS.MIN_SPEED, PHYSICS.MAX_SPEED);
+
+    this.ballPool.getActiveBalls().forEach((ball) => {
+      const body = ball.body;
+      if (!body) return;
+
+      const speed = body.velocity.length();
+      if (speed <= 0) return;
+
+      const ratio = targetSpeed / speed;
+      body.setVelocity(body.velocity.x * ratio, body.velocity.y * ratio);
+    });
+  }
+
+  protected getSceneScoreMultiplier(): number {
+    return this.focusBonusActive ? 1.5 : 1;
+  }
+
   public scalePaddle(scale: number, duration: number) {
-    const currentWidth = 120 * this.tuning.paddleScale;
-    const newWidth = currentWidth * scale;
+    const baseWidth = this.getPaddleWidth();
+    const newWidth = baseWidth * scale;
 
     this.paddle.setScale(scale, 1);
-    (this.paddle.body as Phaser.Physics.Arcade.Body).setSize(newWidth, 18);
+    (this.paddle.body as Phaser.Physics.Arcade.Body).setSize(newWidth, PHYSICS.PADDLE_HEIGHT);
 
     this.showPowerUpStatus('🍻 Wide Paddle');
 
     this.time.addEvent({
       delay: duration,
       callback: () => {
-        this.paddle.setScale(this.tuning.paddleScale, 1);
-        (this.paddle.body as Phaser.Physics.Arcade.Body).setSize(120 * this.tuning.paddleScale, 18);
+        this.paddle.setScale(1, 1);
+        (this.paddle.body as Phaser.Physics.Arcade.Body).setSize(baseWidth, PHYSICS.PADDLE_HEIGHT);
         this.hidePowerUpStatus();
       }
     });
@@ -520,6 +700,21 @@ Click to restart from Week 1`);
   public grantShield(_charges: number = 1) {
     this.shieldActive = true;
     this.showPowerUpStatus('🛡️ Shield Active');
+  }
+
+  public grantFocusBonus(duration: number) {
+    this.focusBonusActive = true;
+    this.focusBonusEvent?.remove(false);
+    this.showPowerUpStatus('🎯 Focus Bonus');
+
+    this.focusBonusEvent = this.time.addEvent({
+      delay: duration,
+      callback: () => {
+        this.focusBonusActive = false;
+        this.focusBonusEvent = undefined;
+        this.hidePowerUpStatus();
+      }
+    });
   }
 
   public clearCurrentHourRow() {
@@ -549,6 +744,9 @@ Click to restart from Week 1`);
       });
 
       this.blockHitPoints.delete(blockId);
+      this.blockDataMap.delete(blockId);
+      this.emergencyTimers.get(blockId)?.remove(false);
+      this.emergencyTimers.delete(blockId);
       this.score += currentHP * SCORING.POINTS_PER_DESTROY;
     });
 
@@ -557,25 +755,42 @@ Click to restart from Week 1`);
     console.log(`📅 Cleared ${blocksToDestroy.length} meetings from hour row`);
   }
 
-  public convertRandomBlocks(count: number, meetingType: string = 'lunch') {
+  public convertRandomBlocks(count: number, meetingType: MeetingType = 'lunch') {
     const blocks = Phaser.Math.RND.shuffle(this.blocks.getChildren())
       .slice(0, count) as PhaserBlock[];
 
     // Use theme colors for consistency
-    const typeConfig: Record<string, { color: number; hp: number }> = {
-      lunch: { color: this.getColorForMeetingType('lunch'), hp: 1 },
-      personal: { color: this.getColorForMeetingType('personal'), hp: 1 },
-      '1:1': { color: this.getColorForMeetingType('1:1'), hp: 2 },
-      team: { color: this.getColorForMeetingType('team'), hp: 2 },
-      boss: { color: this.getColorForMeetingType('boss'), hp: 3 }
-    };
-
-    const config = typeConfig[meetingType] || typeConfig.lunch;
+    const color = this.getColorForMeetingType(meetingType);
+    const hp = this.getHitPointsForMeeting(meetingType);
 
     blocks.forEach((block) => {
       const blockId = block.getData('blockId');
-      this.blockHitPoints.set(blockId, config.hp);
-      block.setFillStyle(config.color, 0.85);
+      const meeting = this.blockDataMap.get(blockId);
+      this.blockHitPoints.set(blockId, hp);
+      block.setData('meetingType', meetingType);
+      block.setFillStyle(color, 0.85);
+
+      if (meeting) {
+        const title = meetingType === 'lunch' ? 'Lunch Break' : meetingType;
+        this.blockDataMap.set(blockId, {
+          ...meeting,
+          type: meetingType,
+          title,
+        });
+
+        this.children.getChildren().forEach((child) => {
+          const childWithData = child as GameObjectWithData;
+          if (!childWithData.getData || childWithData.getData('blockId') !== blockId) return;
+
+          const childType = childWithData.getData('blockChildType');
+          if (childType === 'accent' && child instanceof Phaser.GameObjects.Rectangle) {
+            child.setFillStyle(color, 1);
+          }
+          if (childType === 'label' && child instanceof Phaser.GameObjects.Text) {
+            child.setText(title);
+          }
+        });
+      }
     });
 
     console.log(`🧹 Converted ${blocks.length} meetings to ${meetingType} breaks`);
@@ -623,6 +838,7 @@ Click to restart from Week 1`);
 
     this.ballPositionHistory.clear();
     this.ballCorrectionCooldown.clear();
+    this.clearTransientEffects();
 
     console.log('🧹 MainScenePhase2 cleanup completed');
   }

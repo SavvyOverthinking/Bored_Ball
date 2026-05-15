@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { getCalendarGridConfig, getBoardDimensions } from '@game/utils/calendarGenerator';
-import { applyMeetingEffect, type MeetingType } from '@game/systems/physicsModifiers';
+import { applyMeetingEffect, getPointsMultiplier, type MeetingType } from '@game/systems/physicsModifiers';
 import { BallPool } from '@game/objects/BallPool';
 import { calculatePaddleBounceAngle, PHYSICS, STUCK_DETECTION, SCORING } from '@config/constants';
 import { sound } from '@game/systems/soundEffects';
@@ -106,6 +106,20 @@ export abstract class BaseCalendarScene extends Phaser.Scene {
    */
   protected getColorForMeetingType(type: MeetingType): number {
     return this.theme.colors[type] || this.theme.colors['1:1'];
+  }
+
+  /**
+   * Extra score multiplier supplied by temporary scene effects.
+   */
+  protected getSceneScoreMultiplier(): number {
+    return 1;
+  }
+
+  /**
+   * Hook for subclasses that need to react when a block is destroyed.
+   */
+  protected onBlockDestroyed(_block: PhaserBlock, _blockId: string, _meetingType: MeetingType): void {
+    // Optional subclass hook.
   }
 
   /**
@@ -468,42 +482,63 @@ export abstract class BaseCalendarScene extends Phaser.Scene {
       // Could add visual/audio effects here
     }
 
-    if (newHP <= 0) {
-      sound.blockDestroyed();
-      block.destroy();
-
-      // Find and remove associated text and accent bar
-      this.children.getChildren().forEach((child) => {
-        const childWithData = child as GameObjectWithData;
-        if (childWithData.getData && childWithData.getData('blockId') === blockId) {
-          child.destroy();
-        }
-      });
-
-      this.blockHitPoints.delete(blockId);
-      // Apply combo multiplier to destroy points
-      const points = Math.round(currentHP * SCORING.POINTS_PER_DESTROY * multiplier);
-      this.score += points;
-      this.updateScore();
-    } else {
-      sound.blockHit();
-      this.blockHitPoints.set(blockId, newHP);
-
-      this.tweens.add({
-        targets: block,
-        alpha: 0.5,
-        duration: 100,
-        yoyo: true,
-        ease: 'Power1'
-      });
-
-      // Apply combo multiplier to hit points
-      const points = Math.round(SCORING.POINTS_PER_HIT * multiplier);
-      this.score += points;
-      this.updateScore();
-    }
+    this.applyBlockDamage(block, blockId, meetingType, currentHP, newHP, multiplier);
 
     applyMeetingEffect(meetingType, ball, this);
+  }
+
+  /**
+   * Apply damage and scoring to a block. Shared by ball hits and special effects.
+   */
+  protected applyBlockDamage(
+    block: PhaserBlock,
+    blockId: string,
+    meetingType: MeetingType,
+    currentHP: number,
+    newHP: number,
+    scoreMultiplier: number
+  ): boolean {
+    const totalMultiplier = scoreMultiplier * getPointsMultiplier(meetingType) * this.getSceneScoreMultiplier();
+
+    if (newHP <= 0) {
+      sound.blockDestroyed();
+      this.destroyBlockAndChildren(block, blockId);
+
+      const points = Math.round(currentHP * SCORING.POINTS_PER_DESTROY * totalMultiplier);
+      this.score += points;
+      this.updateScore();
+      this.onBlockDestroyed(block, blockId, meetingType);
+      return true;
+    }
+
+    sound.blockHit();
+    this.blockHitPoints.set(blockId, newHP);
+
+    this.tweens.add({
+      targets: block,
+      alpha: 0.5,
+      duration: 100,
+      yoyo: true,
+      ease: 'Power1'
+    });
+
+    const points = Math.round(SCORING.POINTS_PER_HIT * totalMultiplier);
+    this.score += points;
+    this.updateScore();
+    return false;
+  }
+
+  protected destroyBlockAndChildren(block: PhaserBlock, blockId: string): void {
+    block.destroy();
+
+    this.children.getChildren().forEach((child) => {
+      const childWithData = child as GameObjectWithData;
+      if (childWithData.getData && childWithData.getData('blockId') === blockId) {
+        child.destroy();
+      }
+    });
+
+    this.blockHitPoints.delete(blockId);
   }
 
   /**
