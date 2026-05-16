@@ -45,7 +45,7 @@ export const GameHUD: React.FC = () => {
         </div>
       )}
 
-      <div>Week: {gameState.week}</div>
+      <div>Day: {gameState.week}</div>
 
       {/* Power-up Status */}
       {gameState.powerUpStatus && (

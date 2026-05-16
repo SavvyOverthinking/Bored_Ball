@@ -43,7 +43,7 @@ const TestComponent: React.FC = () => {
     <div>
       <div data-testid="score">Score: {gameState.score}</div>
       <div data-testid="lives">Lives: {gameState.lives}</div>
-      <div data-testid="week">Week: {gameState.week}</div>
+      <div data-testid="week">Day: {gameState.week}</div>
       <div data-testid="isPaused">Paused: {gameState.isPaused.toString()}</div>
       <div data-testid="gameOver">GameOver: {gameState.gameOver.toString()}</div>
       <div data-testid="powerUpStatus">PowerUp: {gameState.powerUpStatus || 'None'}</div>
@@ -63,7 +63,7 @@ describe('GameContext', () => {
 
     expect(screen.getByTestId('score')).toHaveTextContent('Score: 0');
     expect(screen.getByTestId('lives')).toHaveTextContent('Lives: 3');
-    expect(screen.getByTestId('week')).toHaveTextContent('Week: 1');
+    expect(screen.getByTestId('week')).toHaveTextContent('Day: 1');
     expect(screen.getByTestId('isPaused')).toHaveTextContent('Paused: false');
     expect(screen.getByTestId('gameOver')).toHaveTextContent('GameOver: false');
     expect(screen.getByTestId('powerUpStatus')).toHaveTextContent('PowerUp: None');

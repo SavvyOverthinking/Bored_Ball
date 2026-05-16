@@ -6,6 +6,7 @@ import { calculatePaddleBounceAngle, PHYSICS, STUCK_DETECTION, SCORING } from '@
 import { sound } from '@game/systems/soundEffects';
 import { gameEventBus } from '@game/systems/GameEventBus';
 import { ComboManager } from '@game/systems/comboSystem';
+import { readDayOverride } from '@game/utils/dayProgression';
 import type { PhaserBall, PhaserBlock, PhaserPaddle, BallPositionEntry, LoaderFile, GameObjectWithData } from '@/types/game';
 import { THEMES, getThemeFromUrl, type ThemeName } from '@styles/theme';
 
@@ -54,7 +55,15 @@ export abstract class BaseCalendarScene extends Phaser.Scene {
   /**
    * Initialize scene - reset all state and emit initial values via event bus
    */
-  init(_data: Record<string, unknown> = {}) {
+  init(data: Record<string, unknown> = {}) {
+    const incomingWeek = typeof data.week === 'number' ? data.week : undefined;
+    const incomingScore = typeof data.score === 'number' ? data.score : undefined;
+    const incomingLives = typeof data.lives === 'number' ? data.lives : undefined;
+
+    this.currentWeek = readDayOverride() ?? incomingWeek ?? this.currentWeek;
+    this.score = incomingScore ?? this.score;
+    this.lives = incomingLives ?? this.lives;
+
     // CRITICAL: Reset all game state for fresh start
     this.gameStarted = false;
     this.gameOver = false;
@@ -826,7 +835,7 @@ export abstract class BaseCalendarScene extends Phaser.Scene {
       this.gameOver = true;
       gameEventBus.emitGameEvent('GAME_OVER', { gameOver: true, finalScore: this.score });
       gameEventBus.emitGameEvent('WEEK_CLEARED', { week: this.currentWeek, score: this.score });
-      this.showOverlay('Year Cleared! 🎉🎊', `You cleared all 52 weeks!\nFinal Score: ${this.score}\n\nClick to restart`);
+      this.showOverlay('Calendar Cleared! 🎉🎊', `You cleared all 52 days!\nFinal Score: ${this.score}\n\nClick to restart`);
 
       this.input.once('pointerdown', () => {
         this.scene.restart();
@@ -836,7 +845,7 @@ export abstract class BaseCalendarScene extends Phaser.Scene {
       this.gameOver = true;
       gameEventBus.emitGameEvent('GAME_OVER', { gameOver: true });
       gameEventBus.emitGameEvent('WEEK_CLEARED', { week: this.currentWeek, score: this.score });
-      this.showOverlay(`Week ${this.currentWeek} Cleared! 🎉`, `Great job! Moving to Week ${this.currentWeek + 1}...\nScore: ${this.score}\n\nClick to continue`);
+      this.showOverlay(`Day ${this.currentWeek} Cleared! 🎉`, `Great job! Moving to Day ${this.currentWeek + 1}...\nScore: ${this.score}\n\nClick to continue`);
 
       this.input.once('pointerdown', () => {
         this.handleNextWeek();

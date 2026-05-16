@@ -1,23 +1,22 @@
 /**
  * Phase 2 Router
- * Manages week transitions and determines which scene to show
- * - Regular weeks: CalendarScenePhase2
- * - Every 5th completed calendar week: WeekendStageScene bonus
+ * Manages day transitions and determines which scene to show.
+ * A 5-day run is one work week; every fifth cleared day awards a weekend bonus.
  */
 
 import { curve, type LevelTuning } from '@game/utils/levelCurve';
 
 /**
- * Check if clearing this calendar week should trigger a weekend bonus.
+ * Check if clearing this calendar day should trigger a weekend bonus.
  */
 export const isBonusWeek = (week: number): boolean => {
   return week > 0 && week % 5 === 0;
 };
 
 /**
- * Get the primary scene key for a calendar week.
- * Weekend stages are routed after a qualifying week is cleared, not instead of
- * that week's calendar board.
+ * Get the primary scene key for a calendar day.
+ * Weekend stages are routed after a qualifying day is cleared, not instead of
+ * that day's calendar board.
  */
 export const getSceneForWeek = (_week: number): string => {
   return 'CalendarScenePhase2';
@@ -33,11 +32,11 @@ interface AdditionalSceneData {
 }
 
 /**
- * Start the appropriate scene for a given week
+ * Start the appropriate scene for a given day.
  */
 export function startWeek(scene: Phaser.Scene, week: number, additionalData: AdditionalSceneData = {}) {
   const tuning = curve(week);
-  console.log(`📅 Week ${week} - Difficulty: ${getDifficultyName(week)}`);
+  console.log(`📅 Day ${week} - Difficulty: ${getDifficultyName(week)}`);
   scene.scene.start('CalendarScenePhase2', {
     week,
     tuning,
@@ -46,7 +45,7 @@ export function startWeek(scene: Phaser.Scene, week: number, additionalData: Add
 }
 
 /**
- * Start the weekend bonus awarded after a calendar week is cleared.
+ * Start the weekend bonus awarded after a calendar day is cleared.
  */
 export function startWeekendBonus(
   scene: Phaser.Scene,
@@ -54,7 +53,7 @@ export function startWeekendBonus(
   nextWeek: number,
   additionalData: AdditionalSceneData = {}
 ) {
-  console.log(`🌴 Week ${completedWeek} cleared - WEEKEND BONUS STAGE!`);
+  console.log(`🌴 Day ${completedWeek} cleared - WEEKEND BONUS STAGE!`);
   scene.scene.start('WeekendStageScene', {
     week: completedWeek,
     nextWeek,
@@ -99,8 +98,8 @@ export const getTuningForWeek = (week: number): LevelTuning => {
  */
 export const PHASE2_FLOW = {
   TOTAL_WEEKS: 52,
-  BONUS_FREQUENCY: 5,     // After every 5th cleared calendar week
-  INTRO_WEEKS: 5,         // Weeks 1-5 are easier
+  BONUS_FREQUENCY: 5,     // After every 5th cleared calendar day
+  INTRO_WEEKS: 5,         // Days 1-5 are easier
   STARTING_LIVES: 3,
   STARTING_SCORE: 0
 };
@@ -119,13 +118,13 @@ export const getAllBonusWeeks = (): number[] => {
 };
 
 /**
- * Format week number for display
+ * Format day number for display
  */
 export const formatWeekDisplay = (week: number): string => {
   if (isBonusWeek(week)) {
-    return `Week ${week} / 52 + weekend bonus`;
+    return `Day ${week} / 52 + weekend bonus`;
   }
-  return `Week ${week} / 52`;
+  return `Day ${week} / 52`;
 };
 
 export default {

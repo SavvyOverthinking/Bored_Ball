@@ -12,7 +12,15 @@ import { gameEventBus } from '@game/systems/GameEventBus';
 import { curve, type LevelTuning } from '@game/utils/levelCurve';
 import { isBonusWeek, startWeek, startWeekendBonus } from '@game/utils/phase2Router';
 import { POWERUPS, POWERUP_CONFIG, getRandomPowerUp, type PowerUpKind } from '@game/objects/powerups';
-import { generateWeek, computeColumns, type Meeting, type RenderItem } from '@game/utils/calendarGeneratorPhase2';
+import { readDayOverride } from '@game/utils/dayProgression';
+import {
+  LUNCH_END_MIN,
+  LUNCH_START_MIN,
+  generateWeek,
+  computeColumns,
+  type Meeting,
+  type RenderItem
+} from '@game/utils/calendarGeneratorPhase2';
 import type { PhaserBall, PhaserBlock, GameObjectWithData, PowerUpContainer } from '@/types/game';
 import { BaseCalendarScene } from './BaseCalendarScene';
 
@@ -37,6 +45,7 @@ export class MainScenePhase2 extends BaseCalendarScene {
   private focusBonusActive: boolean = false;
   private followUpCounter: number = 0;
   private emergencyTimers: Map<string, Phaser.Time.TimerEvent> = new Map();
+  private seenPowerUps: Set<PowerUpKind> = new Set();
   // private powerUpStatusText?: Phaser.GameObjects.Text; // Removed
 
   constructor() {
@@ -56,13 +65,13 @@ export class MainScenePhase2 extends BaseCalendarScene {
     console.log('🎯 MainScenePhase2.init() called');
     console.log('🎮 Phase 2 Scene Init - Data received:', data);
 
-    // Check for URL param override (?week=25)
-    const urlParams = new URLSearchParams(window.location.search);
-    const urlWeek = Number(urlParams.get('week'));
+    // Check for URL param override. ?day=25 is preferred; ?week=25 is kept
+    // for old test links.
+    const urlLevel = readDayOverride();
 
-    if (urlWeek && Number.isFinite(urlWeek) && urlWeek > 0 && urlWeek <= 52) {
-      this.currentWeek = urlWeek;
-      console.log(`🔧 DEV: Week overridden via URL param: ${urlWeek}`);
+    if (urlLevel && Number.isFinite(urlLevel) && urlLevel > 0 && urlLevel <= 52) {
+      this.currentWeek = urlLevel;
+      console.log(`DEV: Day overridden via URL param: ${urlLevel}`);
     } else {
       this.currentWeek = data.week || 1;
     }
@@ -70,10 +79,10 @@ export class MainScenePhase2 extends BaseCalendarScene {
     this.score = data.score || 0;
     this.lives = data.lives || 3;
 
-    // IMPORTANT: Always get tuning from curve() for proper arcade progression
-    // This ensures paddle shrinks over 10 weeks and speed increases
-    this.tuning = data.tuning || curve(this.currentWeek);
-    console.log(`✅ Week ${this.currentWeek} tuning: paddle=${this.tuning.paddleScale.toFixed(2)}, speed=${this.tuning.baseSpeed}`);
+    // IMPORTANT: Always get tuning from curve() for proper arcade progression.
+    // URL overrides and scene transitions must never reuse stale tuning.
+    this.tuning = curve(this.currentWeek);
+    console.log(`✅ Day ${this.currentWeek} tuning: paddle=${this.tuning.paddleScale.toFixed(2)}, speed=${this.tuning.baseSpeed}`);
 
     this.powerUpSpawned = false;
     this.shieldActive = false;
@@ -82,7 +91,7 @@ export class MainScenePhase2 extends BaseCalendarScene {
     this.followUpCounter = 0;
     this.emergencyTimers.clear();
 
-    console.log(`📈 Week ${this.currentWeek} Tuning Applied:`, this.tuning);
+    console.log(`📈 Day ${this.currentWeek} Tuning Applied:`, this.tuning);
     console.log(`📊 Expected: ${Math.round(this.tuning.density * 100)}% density, ${this.tuning.ballMaxCount} max balls, ${this.tuning.baseSpeed} px/s speed`);
   }
 
@@ -116,7 +125,7 @@ export class MainScenePhase2 extends BaseCalendarScene {
       this.ballPool.getGroup().getChildren().forEach((ballObj) => {
         const ball = ballObj as PhaserBall;
         if (ball.body && this.powerUpIcon) {
-          if (this.physics.overlap(ball, this.powerUpIcon)) {
+          if (this.isBallTouchingPowerUp(ball, this.powerUpIcon)) {
             this.collectPowerUp(ball, this.powerUpIcon);
           }
         }
@@ -138,7 +147,7 @@ export class MainScenePhase2 extends BaseCalendarScene {
       this.createMeetingBlock(item, blockId);
     });
 
-    console.log(`✨ Phase 2: Generated ${meetings.length} meetings for week ${this.currentWeek}`);
+    console.log(`✨ Phase 2: Generated ${meetings.length} meetings for day ${this.currentWeek}`);
     console.log(`📊 Render stats: ${renderItems.length} blocks (including ${renderItems.filter(r => r.cols > 1).length} in double-bookings)`);
   }
 
@@ -272,14 +281,14 @@ export class MainScenePhase2 extends BaseCalendarScene {
       if (event.ctrlKey && event.shiftKey && event.code === 'ArrowUp') {
         event.preventDefault();
         const nextWeek = Math.min(52, this.currentWeek + 1);
-        this.showDevToast(`DEV: Jumping to Week ${nextWeek}`);
+        this.showDevToast(`DEV: Jumping to Day ${nextWeek}`);
         this.scene.restart({ week: nextWeek, score: this.score, lives: this.lives });
       }
 
       if (event.ctrlKey && event.shiftKey && event.code === 'ArrowDown') {
         event.preventDefault();
         const prevWeek = Math.max(1, this.currentWeek - 1);
-        this.showDevToast(`DEV: Jumping to Week ${prevWeek}`);
+        this.showDevToast(`DEV: Jumping to Day ${prevWeek}`);
         this.scene.restart({ week: prevWeek, score: this.score, lives: this.lives });
       }
 
@@ -417,7 +426,7 @@ export class MainScenePhase2 extends BaseCalendarScene {
     this.showOverlay('Meeting Overload 😵', `You've been overwhelmed by meetings!
 Final Score: ${this.score}
 
-Click to restart from Week 1`);
+Click to restart from Day 1`);
 
     this.input.once('pointerdown', () => {
       this.scene.restart({ week: 1, score: 0, lives: 3 });
@@ -429,7 +438,7 @@ Click to restart from Week 1`);
    */
   protected quitGame() {
     this.hideOverlay();
-    this.showOverlay('🚪 QUITTING...', 'Restarting from Week 1');
+    this.showOverlay('🚪 QUITTING...', 'Restarting from Day 1');
 
     this.time.delayedCall(500, () => {
       this.scene.restart({ week: 1, score: 0, lives: 3 });
@@ -566,12 +575,12 @@ Click to restart from Week 1`);
     this.powerUpSpawnEvent = this.time.delayedCall(delay, () => {
       this.powerUpSpawnEvent = undefined;
       if (this.gameStarted && !this.gameOver && !this.isPaused) {
-        this.spawnWeeklyPowerUp();
+        this.spawnDailyPowerUp();
       }
     });
   }
 
-  private spawnWeeklyPowerUp() {
+  private spawnDailyPowerUp() {
     if (this.powerUpSpawned) return;
 
     const validBlocks = this.blocks.getChildren().filter((blockObj) => {
@@ -583,12 +592,15 @@ Click to restart from Week 1`);
     if (validBlocks.length === 0) return;
 
     const block = Phaser.Math.RND.pick(validBlocks) as PhaserBlock;
-    const powerUp = getRandomPowerUp();
+    const excludedPowerUps: PowerUpKind[] = this.hasLunchWindowBlocks() ? [] : ['cleanup'];
+    const powerUp = getRandomPowerUp(excludedPowerUps);
+    const spawnX = block.x;
+    const spawnY = block.y;
 
     // Extract emoji from label
     const emoji = powerUp.label.split(' ')[0];
 
-    const icon = this.add.text(block.x, block.y - 30, emoji, {
+    const icon = this.add.text(0, 0, emoji, {
       fontSize: '48px',
       color: '#FFFFFF'
     }).setOrigin(0.5);
@@ -597,7 +609,7 @@ Click to restart from Week 1`);
     icon.setShadow(0, 0, '#FFD700', 8, true, true);
     icon.setData('powerUpType', powerUp.id);
 
-    const container = this.add.container(block.x, block.y - 30, [icon]);
+    const container = this.add.container(spawnX, spawnY, [icon]);
     this.physics.add.existing(container);
     this.powerUpIcon = container as PowerUpContainer;
     const body = this.powerUpIcon.body;
@@ -607,7 +619,7 @@ Click to restart from Week 1`);
 
     this.tweens.add({
       targets: this.powerUpIcon,
-      y: block.y - 30 - POWERUP_CONFIG.FLOAT_AMPLITUDE,
+      y: spawnY - POWERUP_CONFIG.FLOAT_AMPLITUDE,
       duration: POWERUP_CONFIG.FLOAT_SPEED / 2,
       yoyo: true,
       repeat: -1,
@@ -626,6 +638,29 @@ Click to restart from Week 1`);
     console.log(`⚡ Power-up spawned: ${powerUp.label}`);
   }
 
+  private isBallTouchingPowerUp(ball: PhaserBall, powerUpContainer: PowerUpContainer): boolean {
+    const pickupDistance = POWERUP_CONFIG.PICKUP_RADIUS + PHYSICS.BALL_RADIUS;
+    return Phaser.Math.Distance.Between(ball.x, ball.y, powerUpContainer.x, powerUpContainer.y) <= pickupDistance;
+  }
+
+  private hasLunchWindowBlocks(): boolean {
+    return this.getConvertibleBlocks('lunch').length > 0;
+  }
+
+  private getConvertibleBlocks(meetingType: MeetingType): PhaserBlock[] {
+    const blocks = this.blocks.getChildren().map(blockObj => blockObj as PhaserBlock);
+
+    if (meetingType !== 'lunch') {
+      return blocks;
+    }
+
+    return blocks.filter((block) => {
+      const blockId = block.getData('blockId');
+      const meeting = this.blockDataMap.get(blockId);
+      return !!meeting && meeting.startMin >= LUNCH_START_MIN && meeting.endMin <= LUNCH_END_MIN;
+    });
+  }
+
   private collectPowerUp(_ball: PhaserBall, powerUpContainer: PowerUpContainer) {
     if (!this.powerUpIcon) return;
     if (!powerUpContainer.active) return;
@@ -637,11 +672,56 @@ Click to restart from Week 1`);
 
     console.log(`✨ Collected power-up: ${powerUp.label}`);
 
-    powerUp.apply(this);
-    sound.paddleHit();
-
     this.powerUpIcon.destroy();
     this.powerUpIcon = undefined;
+
+    const applyPowerUp = () => {
+      powerUp.apply(this);
+      sound.paddleHit();
+    };
+
+    if (!this.seenPowerUps.has(powerUpType)) {
+      this.seenPowerUps.add(powerUpType);
+      this.showPowerUpIntro(powerUp.label, powerUp.description, applyPowerUp);
+      return;
+    }
+
+    applyPowerUp();
+  }
+
+  private showPowerUpIntro(label: string, description: string, onContinue: () => void) {
+    this.isPaused = true;
+    this.physics.pause();
+    this.time.paused = true;
+    gameEventBus.emitGameEvent('GAME_PAUSE', { isPaused: true });
+
+    if (this.pointerLocked) {
+      document.exitPointerLock();
+    }
+
+    this.showOverlay(label, `${description}\n\nClick, Space, or Enter to continue`);
+
+    let dismissed = false;
+    const keyboard = this.input.keyboard;
+    const dismiss = () => {
+      if (dismissed) return;
+
+      dismissed = true;
+      this.input.off('pointerdown', dismiss);
+      keyboard?.off('keydown-SPACE', dismiss);
+      keyboard?.off('keydown-ENTER', dismiss);
+
+      this.hideOverlay();
+      this.time.paused = false;
+      this.physics.resume();
+      this.isPaused = false;
+      gameEventBus.emitGameEvent('GAME_PAUSE', { isPaused: false });
+      onContinue();
+    };
+
+    this.input.on('pointerdown', dismiss);
+    keyboard?.on('keydown-SPACE', dismiss);
+    keyboard?.on('keydown-ENTER', dismiss);
   }
 
   public applyCoffee(duration: number) {
@@ -756,8 +836,15 @@ Click to restart from Week 1`);
   }
 
   public convertRandomBlocks(count: number, meetingType: MeetingType = 'lunch') {
-    const blocks = Phaser.Math.RND.shuffle(this.blocks.getChildren())
+    const blocks = Phaser.Math.RND.shuffle(this.getConvertibleBlocks(meetingType))
       .slice(0, count) as PhaserBlock[];
+
+    if (blocks.length === 0) {
+      this.showDevToast(meetingType === 'lunch'
+        ? 'No lunch-window meetings to clean up'
+        : `No meetings to convert to ${meetingType}`);
+      return;
+    }
 
     // Use theme colors for consistency
     const color = this.getColorForMeetingType(meetingType);

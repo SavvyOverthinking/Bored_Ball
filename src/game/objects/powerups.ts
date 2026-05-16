@@ -56,7 +56,7 @@ export const POWERUPS: Record<PowerUpKind, PowerUpDefinition> = {
     id: 'cleanup',
     icon: 'pu_broom',
     label: '🧹 Calendar Cleanup',
-    description: 'Convert 3 random meetings to lunch breaks',
+    description: 'Convert up to 3 lunch-window meetings to lunch breaks',
     color: 0x32CD32,
     apply: (scene) => scene.convertRandomBlocks(3, 'lunch')
   },
@@ -102,8 +102,8 @@ export const getRandomPowerUp = (exclude: PowerUpKind[] = []): PowerUpDefinition
  */
 export const POWERUP_CONFIG = {
   // Timing
-  MIN_SPAWN_DELAY: 8000,   // 8 seconds after week start
-  MAX_SPAWN_DELAY: 16000,  // 16 seconds after week start
+  MIN_SPAWN_DELAY: 8000,   // 8 seconds after day start
+  MAX_SPAWN_DELAY: 16000,  // 16 seconds after day start
   
   // Visual
   FLOAT_AMPLITUDE: 8,      // Pixels up/down
@@ -112,9 +112,9 @@ export const POWERUP_CONFIG = {
   GLOW_ALPHA: 0.4,         // Glow effect opacity
   
   // Behavior
-  MAX_PER_WEEK: 1,         // Exactly one per week
+  MAX_PER_WEEK: 1,         // Exactly one per day
   AVOID_BOSS_BLOCKS: true, // Don't spawn on boss meetings
-  PICKUP_RADIUS: 30        // Collision detection radius
+  PICKUP_RADIUS: 52        // Forgiving pickup radius
 };
 
 /**

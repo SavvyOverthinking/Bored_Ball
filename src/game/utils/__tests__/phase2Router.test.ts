@@ -25,7 +25,7 @@ describe('phase2Router', () => {
   });
 
   it('labels bonus weeks as post-clear rewards', () => {
-    expect(formatWeekDisplay(5)).toBe('Week 5 / 52 + weekend bonus');
-    expect(formatWeekDisplay(6)).toBe('Week 6 / 52');
+    expect(formatWeekDisplay(5)).toBe('Day 5 / 52 + weekend bonus');
+    expect(formatWeekDisplay(6)).toBe('Day 6 / 52');
   });
 });

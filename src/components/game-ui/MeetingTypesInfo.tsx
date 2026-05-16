@@ -44,7 +44,7 @@ export const MeetingTypesInfo: React.FC = () => {
               <span className="text-gray-500"> - {type.hits} hit{type.hits > 1 ? 's' : ''}</span>
               <div className="text-xs text-gray-600 truncate">{type.effect}</div>
               {type.minWeek && (
-                <div className="text-xs text-blue-500">Week {type.minWeek}+</div>
+                <div className="text-xs text-blue-500">Day {type.minWeek}+</div>
               )}
             </div>
           </div>

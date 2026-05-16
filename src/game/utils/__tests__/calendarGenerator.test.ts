@@ -65,9 +65,11 @@ describe('calendarGeneratorPhase2', () => {
 
       it('keeps meetings in top portion of screen (9am-11am area)', () => {
         const meetings = generateWeek(2);
-        // Week 2 maxStartMin is 120 (9am-11am area)
+        // Day 2 non-lunch meetings stay in the morning; lunches follow the lunch window.
         meetings.forEach(m => {
-          expect(m.startMin).toBeLessThanOrEqual(120);
+          if (m.type !== 'lunch') {
+            expect(m.startMin).toBeLessThanOrEqual(120);
+          }
         });
       });
     });
@@ -136,6 +138,17 @@ describe('calendarGeneratorPhase2', () => {
 
         meetings.forEach(m => {
           expect(m.startMin % 15).toBe(0);
+        });
+      });
+
+      it('keeps lunch meetings between 11:30 AM and 2:00 PM', () => {
+        [2, 10, 25, 52].forEach(day => {
+          const lunches = generateWeek(day).filter(m => m.type === 'lunch');
+
+          lunches.forEach(lunch => {
+            expect(lunch.startMin).toBeGreaterThanOrEqual(150);
+            expect(lunch.endMin).toBeLessThanOrEqual(300);
+          });
         });
       });
     });

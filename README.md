@@ -23,15 +23,15 @@
 
 ## 🎮 Game Overview
 
-Clear your Outlook calendar by destroying all meetings with physics-based gameplay! Navigate through 52 weeks of back-to-back meetings, double bookings, and meeting hell. Each meeting type has unique physics effects that modify ball behavior.
+Clear your Outlook calendar by destroying all meetings with physics-based gameplay! Navigate through a 52-day work-year of back-to-back meetings, double bookings, and meeting hell. Each meeting type has unique physics effects that modify ball behavior.
 
 ### Features
 
 ✨ **Outlook-Inspired Design** - Authentic Microsoft calendar aesthetic  
-🎯 **52-Week Campaign** - Clear an entire year of meetings  
+🎯 **52-Day Campaign** - Clear an entire year of meetings  
 ⚡ **Progressive Difficulty** - Gentle start, brutal endgame (Phase 2)  
-🎮 **Weekly Power-ups** - 6 different power-ups to help you survive
-🏖️ **Weekend Bonus Stages** - Email dodge challenges after every 5th cleared week
+🎮 **Daily Power-ups** - 6 different power-ups to help you survive
+🏖️ **Weekend Bonus Stages** - Email dodge challenges after every 5th cleared day
 ⚡ **Physics Effects** - Each meeting type modifies gameplay  
 📊 **Multi-Hit Blocks** - Boss meetings require 3 hits to destroy  
 🎨 **Theme Support** - Outlook, Google Calendar, or default themes  
@@ -114,11 +114,11 @@ npm run preview
 ### Scoring
 - **5 points** per hit
 - **Bonus points** for destroying harder blocks (Boss = 30 total)
-- Score persists across all 52 weeks
+- Score persists across all 52 days
 
 ### 🎮 Power-ups (Phase 2)
 
-Weekly power-ups spawn 8-16 seconds after the ball launches, so they never expire on the splash screen. Collect by hitting them with the ball.
+Daily power-ups spawn 8-16 seconds after the ball launches, so they never expire on the splash screen. Collect by hitting them with the ball.
 
 | Power-up | Effect | Duration |
 |----------|--------|----------|
@@ -126,10 +126,10 @@ Weekly power-ups spawn 8-16 seconds after the ball launches, so they never expir
 | 🍻 **Happy Hour** | Wide paddle (1.4× size) | 30 seconds |
 | 🛡️ **DND** | Free shield (blocks next life loss) | Until used |
 | 📅 **Reschedule** | Clears all meetings in current hour | Instant |
-| 🧹 **Cleanup** | Converts 3 meetings into real lunch breaks | Instant |
+| 🧹 **Cleanup** | Converts up to 3 lunch-window meetings into real breaks | Instant |
 | 💥 **Multi-Ball** | Spawns 2 extra balls | Instant |
 
-**Note:** Only ONE power-up spawns per week!
+**Note:** Only ONE power-up spawns per day!
 
 ---
 
@@ -216,8 +216,8 @@ The game currently uses code-drawn graphics. For Outlook-authentic sprites:
 - [ ] Blocks require correct number of hits
 - [ ] Ball speed clamped (doesn't go infinite)
 - [ ] Tuned max balls enforced (2 early, up to 4 late game)
-- [ ] Week progression works (1 → 52)
-- [ ] Score persists across weeks
+- [ ] Day progression works (1 → 52)
+- [ ] Score persists across days
 - [ ] Lives system functional
 - [ ] Win/lose overlays display
 - [ ] Keyboard controls work
@@ -267,9 +267,9 @@ This project uses **pre-built deployment** to avoid CI build issues.
 - **Velocity Clamping:** Applied after every collision
 
 ### Progression
-- **52 Weeks** total (full year)
+- **52 Days** total (full work-year)
 - **3 Lives** per game
-- Lives carry over between weeks
+- Lives carry over between days
 - Score accumulates across entire year
 
 ---
@@ -277,11 +277,11 @@ This project uses **pre-built deployment** to avoid CI build issues.
 ## 🔮 Roadmap
 
 ### ✅ Phase 2 Features (Implemented!)
-- [x] Progressive difficulty curve (weeks 1-52)
-- [x] Weekly power-ups (6 types)
-- [x] Weekend bonus stages (after every 5th cleared week)
-- [x] Gentler early game (weeks 1-5)
-- [x] Difficulty scaling (gets brutal by week 52!)
+- [x] Progressive difficulty curve (days 1-52)
+- [x] Daily power-ups (6 types)
+- [x] Weekend bonus stages (after every 5th cleared day)
+- [x] Gentler early game (days 1-5)
+- [x] Difficulty scaling (gets brutal by day 52!)
 
 ### Phase 3 - Planned Features
 - [ ] Sound effects (paddle hit, block destroy)

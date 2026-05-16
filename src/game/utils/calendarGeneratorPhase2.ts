@@ -1,10 +1,10 @@
 /**
  * Phase 2 Calendar Generator
  * CLASSIC ARCADE PROGRESSION:
- * - Weeks 1-3: Easy (top of screen, few blocks)
- * - Weeks 4-7: Medium (top half, more blocks)
- * - Weeks 8-10: Hard (3/4 screen, many blocks)
- * - Weeks 11+: Full difficulty (plateau)
+ * - Days 1-3: Easy (top of screen, few blocks)
+ * - Days 4-7: Medium (top half, more blocks)
+ * - Days 8-10: Hard (3/4 screen, many blocks)
+ * - Days 11+: Full difficulty (plateau)
  */
 
 import { mulberry32 } from '@game/utils/rng';
@@ -42,6 +42,8 @@ export interface RenderItem extends Meeting {
 const START_HOUR = 9;
 const END_HOUR = 17;
 const DAY_MINS = (END_HOUR - START_HOUR) * 60; // 480 minutes
+export const LUNCH_START_MIN = 150; // 11:30 AM
+export const LUNCH_END_MIN = 300;   // 2:00 PM
 
 const INTRO_WEEK: Record<MeetingType, number> = {
   personal: 1,
@@ -128,12 +130,12 @@ function getProgressionConfig(week: number): ProgressionConfig {
 }
 
 /**
- * Generate a deterministic calendar for a given week
+ * Generate a deterministic calendar for a given day
  * Single progression model: simple onboarding, then more density, more vertical
  * coverage, more overlaps, and more meeting behaviors over time.
  */
 export function generateWeek(week: number): Meeting[] {
-  console.log(`🗓️ Generating calendar for Week ${week}...`);
+  console.log(`🗓️ Generating calendar for Day ${week}...`);
 
   if (week === 1) {
     return generateWeek1Simple();
@@ -143,7 +145,7 @@ export function generateWeek(week: number): Meeting[] {
 }
 
 /**
- * WEEK 1: Super simple - just grey blocks at very top
+ * DAY 1: Super simple - just grey blocks at very top
  */
 function generateWeek1Simple(): Meeting[] {
   const meetings: Meeting[] = [];
@@ -168,7 +170,7 @@ function generateWeek1Simple(): Meeting[] {
     });
   }
 
-  console.log(`✅ Week 1: ${meetings.length} simple blocks at TOP of screen`);
+  console.log(`✅ Day 1: ${meetings.length} simple blocks at TOP of screen`);
   return meetings;
 }
 
@@ -204,9 +206,16 @@ function generateProgressionWeek(week: number): Meeting[] {
     return 'personal';
   };
 
-  const pickDuration = (): number => {
-    const options = [15, 30, 45, 60].filter(d => d >= config.minDuration);
+  const pickDuration = (type: MeetingType): number => {
+    const baseOptions = type === 'lunch' ? [30, 45, 60] : [15, 30, 45, 60];
+    const options = baseOptions.filter(d => d >= config.minDuration);
     return options[Math.floor(rand() * options.length)] || config.minDuration;
+  };
+
+  const pickLunchStart = (duration: number): number => {
+    const latestStart = LUNCH_END_MIN - duration;
+    const slotCount = Math.max(1, Math.floor((latestStart - LUNCH_START_MIN) / 15) + 1);
+    return LUNCH_START_MIN + Math.floor(rand() * slotCount) * 15;
   };
 
   const pickTitle = (type: MeetingType): string => {
@@ -215,11 +224,14 @@ function generateProgressionWeek(week: number): Meeting[] {
   };
 
   for (let i = 0; i < config.meetingCount; i++) {
-    const duration = pickDuration();
+    const type = pickType();
+    const duration = pickDuration(type);
     let day = Math.floor(rand() * 5);
     let startMin: number;
 
-    if (meetings.length > 0 && rand() < config.overlapRate) {
+    if (type === 'lunch') {
+      startMin = pickLunchStart(duration);
+    } else if (meetings.length > 0 && rand() < config.overlapRate) {
       const source = meetings[Math.floor(rand() * meetings.length)];
       day = source.day;
       const offset = rand() < 0.5 ? -15 : 15;
@@ -231,8 +243,6 @@ function generateProgressionWeek(week: number): Meeting[] {
       startMin = Math.floor(rand() * slotCount) * 15;
     }
 
-    const type = pickType();
-
     meetings.push({
       day,
       startMin,
@@ -243,7 +253,7 @@ function generateProgressionWeek(week: number): Meeting[] {
   }
 
   const screenCoverage = Math.round((config.maxStartMin / DAY_MINS) * 100);
-  console.log(`✅ Week ${week}: ${meetings.length} meetings, ${screenCoverage}% screen coverage`);
+  console.log(`✅ Day ${week}: ${meetings.length} meetings, ${screenCoverage}% screen coverage`);
   return meetings;
 }
 

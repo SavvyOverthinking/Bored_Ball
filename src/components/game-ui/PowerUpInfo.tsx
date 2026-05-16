@@ -5,7 +5,7 @@ const POWER_UPS = [
   { name: 'Happy Hour', icon: '🍻', color: 'text-pink-600', effect: 'Wide paddle for 30s' },
   { name: 'Do Not Disturb', icon: '🛡️', color: 'text-blue-600', effect: 'Blocks the next life loss' },
   { name: 'Reschedule', icon: '📅', color: 'text-orange-600', effect: 'Clears meetings near the ball row' },
-  { name: 'Calendar Cleanup', icon: '🧹', color: 'text-green-600', effect: 'Turns 3 meetings into real lunch breaks' },
+  { name: 'Calendar Cleanup', icon: '🧹', color: 'text-green-600', effect: 'Turns up to 3 lunch-window meetings into breaks' },
   { name: 'Multi-Ball', icon: '💥', color: 'text-fuchsia-600', effect: 'Spawns 2 extra balls' },
 ];
 

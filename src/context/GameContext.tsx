@@ -1,5 +1,6 @@
 import React, { createContext, useState, useContext, ReactNode, useEffect, useCallback } from 'react';
 import { gameEventBus, GameEvents } from '@game/systems/GameEventBus';
+import { getInitialDay } from '@game/utils/dayProgression';
 
 // Define the shape of our game state
 export interface GameState {
@@ -23,7 +24,7 @@ interface GameContextType {
 const initialGameState: GameState = {
   score: 0,
   lives: 3,
-  week: 1,
+  week: getInitialDay(),
   isPaused: false,
   gameOver: false,
   powerUpStatus: null,

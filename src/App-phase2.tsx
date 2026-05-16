@@ -17,15 +17,15 @@ function App() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm" style={{ fontFamily: 'Segoe UI, sans-serif' }}>
           <div className="bg-white p-3 rounded-lg shadow-sm">
             <div className="font-semibold text-purple-600 mb-1">📈 Gentle Start</div>
-            <div className="text-gray-600 text-xs">Weeks 1-5: Larger paddle, slower ball, easier meetings</div>
+            <div className="text-gray-600 text-xs">Days 1-5: Larger paddle, slower ball, easier meetings</div>
           </div>
           <div className="bg-white p-3 rounded-lg shadow-sm">
-            <div className="font-semibold text-pink-600 mb-1">⚡ Weekly Power-ups</div>
-            <div className="text-gray-600 text-xs">One power-up per week: Coffee, Shield, Cleanup & more</div>
+            <div className="font-semibold text-pink-600 mb-1">⚡ Daily Power-ups</div>
+            <div className="text-gray-600 text-xs">One power-up per day: Coffee, Shield, Cleanup & more</div>
           </div>
           <div className="bg-white p-3 rounded-lg shadow-sm">
             <div className="font-semibold text-blue-600 mb-1">🌴 Weekend Bonus</div>
-            <div className="text-gray-600 text-xs">After every 5th cleared week: Email Dodge challenge for bonus points</div>
+            <div className="text-gray-600 text-xs">After every 5th cleared day: Email Dodge challenge for bonus points</div>
           </div>
           <div className="bg-white p-3 rounded-lg shadow-sm">
             <div className="font-semibold text-orange-600 mb-1">🎯 Progressive Difficulty</div>
