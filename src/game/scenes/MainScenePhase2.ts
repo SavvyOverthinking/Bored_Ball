@@ -352,6 +352,51 @@ export class MainScenePhase2 extends BaseCalendarScene {
     });
   }
 
+  protected destroyBlockAndChildren(block: PhaserBlock, blockId: string): void {
+    block.destroy();
+
+    this.getBlockChildren(blockId).forEach(child => {
+      this.animateMeetingChildExit(child);
+    });
+
+    this.blockHitPoints.delete(blockId);
+  }
+
+  private animateMeetingChildExit(child: GameObjectWithData): void {
+    this.tweens.killTweensOf(child);
+
+    if (child instanceof Phaser.GameObjects.Text) {
+      const childType = child.getData('blockChildType');
+      const fallDistance = childType === 'time' ? 30 : 20;
+      child.setDepth(80);
+
+      this.tweens.add({
+        targets: child,
+        y: child.y + fallDistance,
+        alpha: 0,
+        angle: Phaser.Math.Between(-3, 3),
+        duration: childType === 'time' ? 460 : 360,
+        ease: 'Cubic.easeIn',
+        onComplete: () => child.destroy(),
+      });
+      return;
+    }
+
+    if (child instanceof Phaser.GameObjects.Rectangle) {
+      this.tweens.add({
+        targets: child,
+        y: child.y + 10,
+        alpha: 0,
+        duration: 220,
+        ease: 'Cubic.easeIn',
+        onComplete: () => child.destroy(),
+      });
+      return;
+    }
+
+    child.destroy();
+  }
+
   /**
    * Create extra ball (Phase 2: uses tuned max count)
    */
@@ -928,15 +973,7 @@ Click to restart from Day 1`);
       const blockId = block.getData('blockId');
       const currentHP = this.blockHitPoints.get(blockId) || 1;
 
-      block.destroy();
-      this.children.getChildren().forEach((child) => {
-        const childWithData = child as GameObjectWithData;
-        if (childWithData.getData && childWithData.getData('blockId') === blockId) {
-          child.destroy();
-        }
-      });
-
-      this.blockHitPoints.delete(blockId);
+      this.destroyBlockAndChildren(block, blockId);
       this.blockDataMap.delete(blockId);
       this.emergencyTimers.get(blockId)?.remove(false);
       this.emergencyTimers.delete(blockId);

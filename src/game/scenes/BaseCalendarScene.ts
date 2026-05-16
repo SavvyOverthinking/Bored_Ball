@@ -569,14 +569,16 @@ export abstract class BaseCalendarScene extends Phaser.Scene {
   protected destroyBlockAndChildren(block: PhaserBlock, blockId: string): void {
     block.destroy();
 
-    this.children.getChildren().forEach((child) => {
-      const childWithData = child as GameObjectWithData;
-      if (childWithData.getData && childWithData.getData('blockId') === blockId) {
-        child.destroy();
-      }
-    });
+    this.getBlockChildren(blockId).forEach(child => child.destroy());
 
     this.blockHitPoints.delete(blockId);
+  }
+
+  protected getBlockChildren(blockId: string): GameObjectWithData[] {
+    return this.children.getChildren().filter((child): child is GameObjectWithData => {
+      const childWithData = child as GameObjectWithData;
+      return !!childWithData.getData && childWithData.getData('blockId') === blockId;
+    });
   }
 
   /**
