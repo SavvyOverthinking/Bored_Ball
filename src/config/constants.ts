@@ -4,6 +4,7 @@
  */
 
 import Phaser from 'phaser';
+import { CAMPAIGN_TOTAL_DAYS } from '@game/utils/campaign';
 
 export const CANVAS = {
   WIDTH: 900,
@@ -28,7 +29,7 @@ export const WORK_HOURS = {
 };
 
 export const GAME = {
-  TOTAL_WEEKS: 52,
+  TOTAL_WEEKS: CAMPAIGN_TOTAL_DAYS,
   INITIAL_LIVES: 3,
 };
 
@@ -56,9 +57,10 @@ export const STUCK_DETECTION = {
  * Weekend stage constants
  */
 export const WEEKEND_STAGE = {
-  DURATION_MS: 30000,              // 30 seconds survival challenge
-  BONUS_POINTS_BASE: 500,          // Base points for completion
+  DURATION_MS: 20000,              // 20 seconds restorative weekend challenge
+  BONUS_POINTS_BASE: 350,          // Base points for completion
   BONUS_POINTS_PER_EMAIL: 10,      // Points per dodged email
+  RESTORE_LIFE_MAX: 3,             // Weekend survival can refill up to this cap
 };
 
 /**

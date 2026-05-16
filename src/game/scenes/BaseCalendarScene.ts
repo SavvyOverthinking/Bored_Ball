@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import { getCalendarGridConfig, getBoardDimensions } from '@game/utils/calendarGenerator';
 import { applyMeetingEffect, getPointsMultiplier, type MeetingType } from '@game/systems/physicsModifiers';
 import { BallPool } from '@game/objects/BallPool';
-import { calculatePaddleBounceAngle, PHYSICS, STUCK_DETECTION, SCORING } from '@config/constants';
+import { calculatePaddleBounceAngle, GAME, PHYSICS, STUCK_DETECTION, SCORING } from '@config/constants';
 import { sound } from '@game/systems/soundEffects';
 import { gameEventBus } from '@game/systems/GameEventBus';
 import { ComboManager } from '@game/systems/comboSystem';
@@ -30,7 +30,7 @@ export abstract class BaseCalendarScene extends Phaser.Scene {
   protected score: number = 0;
   protected lives: number = 3;
   protected currentWeek: number = 1;
-  protected totalWeeks: number = 52;
+  protected totalWeeks: number = GAME.TOTAL_WEEKS;
   protected gameStarted: boolean = false;
   protected gameOver: boolean = false;
   protected isPaused: boolean = false;
@@ -835,7 +835,7 @@ export abstract class BaseCalendarScene extends Phaser.Scene {
       this.gameOver = true;
       gameEventBus.emitGameEvent('GAME_OVER', { gameOver: true, finalScore: this.score });
       gameEventBus.emitGameEvent('WEEK_CLEARED', { week: this.currentWeek, score: this.score });
-      this.showOverlay('Calendar Cleared! 🎉🎊', `You cleared all 52 days!\nFinal Score: ${this.score}\n\nClick to restart`);
+      this.showOverlay('Quarter Survived! 🎉🎊', `You cleared all ${this.totalWeeks} workdays!\nFinal Score: ${this.score}\n\nClick to restart`);
 
       this.input.once('pointerdown', () => {
         this.scene.restart();

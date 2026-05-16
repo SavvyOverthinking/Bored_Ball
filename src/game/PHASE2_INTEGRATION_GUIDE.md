@@ -8,7 +8,7 @@ MainScenePhase2 is a duplicate of MainScene.ts with Phase 2 features integrated.
 ### ✅ Already Created
 - `levelCurve.ts` - Progressive difficulty system
 - `powerups.ts` - Weekly power-up definitions
-- `WeekendStageScene.ts` - Bonus stage every 5th week
+- `WeekendStageScene.ts` - Reset stage after every fifth workday
 - `phase2Router.ts` - Scene routing logic
 
 ### 🔄 MainScenePhase2.ts Modifications Required
@@ -161,8 +161,8 @@ convertRandomBlocks(count: number, toType: MeetingType) {
 #### 8. Week Completion (Router Integration)
 ```typescript
 winGame() {
-  if (this.currentWeek >= 52) {
-    // Year complete!
+  if (this.currentWeek >= 25) {
+    // Campaign complete!
     this.showYearComplete();
   } else {
     // Use Phase 2 router
@@ -207,7 +207,7 @@ private ballOffScreen(ball: any) {
 
 ## Testing Priorities
 
-1. **Week 1-5 Difficulty**
+1. **Days 1-5 Difficulty**
    - Verify paddle is 1.2× wider
    - Verify ball speed is 220 px/s
    - Verify fewer boss meetings
@@ -219,16 +219,16 @@ private ballOffScreen(ball: any) {
    - Spawns 8-16s after start
    - All 5 types work correctly
 
-3. **Weekend Bonus (Weeks 5, 10, 15...)**
+3. **Weekend Reset (Days 5, 10, 15, 20)**
    - Correct routing to WeekendStageScene
    - Email dodge works
    - Bonus scoring applied
    - Returns to calendar scene
 
 4. **Progressive Difficulty**
-   - Week 6: Starts ramping up
-   - Week 30: Noticeably harder
-   - Week 52: Brutal mode
+   - Day 6: Starts ramping up
+   - Day 15: Noticeably harder
+   - Day 25: Finale pressure
 
 ## File Structure
 ```

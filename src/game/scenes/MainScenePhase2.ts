@@ -69,7 +69,7 @@ export class MainScenePhase2 extends BaseCalendarScene {
     // for old test links.
     const urlLevel = readDayOverride();
 
-    if (urlLevel && Number.isFinite(urlLevel) && urlLevel > 0 && urlLevel <= 52) {
+    if (urlLevel && Number.isFinite(urlLevel) && urlLevel > 0 && urlLevel <= this.totalWeeks) {
       this.currentWeek = urlLevel;
       console.log(`DEV: Day overridden via URL param: ${urlLevel}`);
     } else {
@@ -280,7 +280,7 @@ export class MainScenePhase2 extends BaseCalendarScene {
     this.input.keyboard?.on('keydown', (event: KeyboardEvent) => {
       if (event.ctrlKey && event.shiftKey && event.code === 'ArrowUp') {
         event.preventDefault();
-        const nextWeek = Math.min(52, this.currentWeek + 1);
+        const nextWeek = Math.min(this.totalWeeks, this.currentWeek + 1);
         this.showDevToast(`DEV: Jumping to Day ${nextWeek}`);
         this.scene.restart({ week: nextWeek, score: this.score, lives: this.lives });
       }

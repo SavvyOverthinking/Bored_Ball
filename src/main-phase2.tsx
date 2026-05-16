@@ -10,7 +10,7 @@ if (!FLAGS.PHASE2) {
 }
 
 console.log('🎮 Calendar Breakout - Phase 2 (STAGING)');
-console.log('✨ Features: Level Curve, Daily Power-ups, Weekend Dodge Mode');
+console.log('✨ Features: 25-Day Campaign, Daily Power-ups, Weekend Reset Mode');
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <GameProvider>

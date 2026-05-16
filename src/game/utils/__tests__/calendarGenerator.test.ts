@@ -26,7 +26,7 @@ beforeEach(() => {
 
 describe('calendarGeneratorPhase2', () => {
   describe('generateWeek()', () => {
-    describe('Week 1 - Onboarding', () => {
+    describe('Day 1 - Onboarding', () => {
       it('generates exactly 10 blocks (2 per day)', () => {
         const meetings = generateWeek(1);
         expect(meetings.length).toBe(10);
@@ -55,62 +55,50 @@ describe('calendarGeneratorPhase2', () => {
       });
     });
 
-    describe('Week 2 - Easy arcade progression', () => {
-      it('generates around 12 meetings for week 2', () => {
+    describe('Days 2-5 - Teaching progression', () => {
+      it('generates a readable early board for day 2', () => {
         const meetings = generateWeek(2);
-        // Week 2: 8 + 2*2 = 12 meetings (arcade config)
-        expect(meetings.length).toBeGreaterThanOrEqual(10);
-        expect(meetings.length).toBeLessThanOrEqual(15);
+        expect(meetings.length).toBe(10);
+        expect(meetings.some(m => m.type === '1:1')).toBe(true);
+        expect(meetings.some(m => m.type === 'team')).toBe(false);
       });
 
-      it('keeps meetings in top portion of screen (9am-11am area)', () => {
-        const meetings = generateWeek(2);
-        // Day 2 non-lunch meetings stay in the morning; lunches follow the lunch window.
-        meetings.forEach(m => {
-          if (m.type !== 'lunch') {
-            expect(m.startMin).toBeLessThanOrEqual(120);
-          }
-        });
+      it('introduces lunch on day 3 and team meetings on day 4', () => {
+        const day3 = generateWeek(3);
+        const day4 = generateWeek(4);
+
+        expect(day3.some(m => m.type === 'lunch')).toBe(true);
+        expect(day3.some(m => m.type === 'team')).toBe(false);
+        expect(day4.some(m => m.type === 'team')).toBe(true);
       });
     });
 
-    describe('Weeks 3-20 - Progressive', () => {
+    describe('Days 6-25 - Campaign ramp', () => {
       it('increases meeting count progressively', () => {
-        const week3 = generateWeek(3);
-        const week10 = generateWeek(10);
-        const week20 = generateWeek(20);
+        const day5 = generateWeek(5);
+        const day10 = generateWeek(10);
+        const day25 = generateWeek(25);
 
-        // Week 3 should have ~10 meetings
-        expect(week3.length).toBeGreaterThanOrEqual(8);
-        expect(week3.length).toBeLessThanOrEqual(15);
-
-        // Week 10 should have more
-        expect(week10.length).toBeGreaterThan(week3.length);
-
-        // Week 20 should have ~40+ meetings (including overlaps)
-        expect(week20.length).toBeGreaterThanOrEqual(35);
+        expect(day10.length).toBeGreaterThan(day5.length);
+        expect(day25.length).toBeGreaterThan(day10.length);
+        expect(day25.length).toBeLessThanOrEqual(40);
       });
 
-      it('starts including boss meetings after week 3', () => {
-        // Generate multiple times to account for RNG
-        const meetings = generateWeek(10);
+      it('starts including boss meetings after day 6', () => {
+        const meetings = generateWeek(6);
         const hasBoss = meetings.some(m => m.type === 'boss');
-        // Boss should appear in later progressive weeks
-        // This is probabilistic, so we check pattern not guaranteed occurrence
-        expect(typeof hasBoss).toBe('boolean');
-      });
-    });
-
-    describe('Weeks 21+ - Curve System', () => {
-      it('generates high meeting density at week 52', () => {
-        const meetings = generateWeek(52);
-        // Week 52 has 80% density, should generate many meetings
-        expect(meetings.length).toBeGreaterThanOrEqual(40);
+        expect(hasBoss).toBe(true);
       });
 
-      it('is deterministic (same week = same calendar)', () => {
-        const first = generateWeek(30);
-        const second = generateWeek(30);
+      it('introduces late-game meeting types before the finale', () => {
+        expect(generateWeek(13).some(m => m.type === 'recurring')).toBe(true);
+        expect(generateWeek(18).some(m => m.type === 'allhands')).toBe(true);
+        expect(generateWeek(21).some(m => m.type === 'emergency')).toBe(true);
+      });
+
+      it('is deterministic (same day = same calendar)', () => {
+        const first = generateWeek(20);
+        const second = generateWeek(20);
 
         expect(first.length).toBe(second.length);
         expect(first[0].day).toBe(second[0].day);
@@ -142,7 +130,7 @@ describe('calendarGeneratorPhase2', () => {
       });
 
       it('keeps lunch meetings between 11:30 AM and 2:00 PM', () => {
-        [2, 10, 25, 52].forEach(day => {
+        [3, 10, 20, 25].forEach(day => {
           const lunches = generateWeek(day).filter(m => m.type === 'lunch');
 
           lunches.forEach(lunch => {

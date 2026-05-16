@@ -1,5 +1,6 @@
 import React from 'react';
 import { useGame } from '../../context/GameContext';
+import { CAMPAIGN_TOTAL_DAYS } from '@game/utils/campaign';
 
 // Get tier name based on combo count
 const getComboTier = (combo: number): { name: string; color: string } => {
@@ -45,7 +46,7 @@ export const GameHUD: React.FC = () => {
         </div>
       )}
 
-      <div>Day: {gameState.week}</div>
+      <div>Day: {gameState.week}/{CAMPAIGN_TOTAL_DAYS}</div>
 
       {/* Power-up Status */}
       {gameState.powerUpStatus && (

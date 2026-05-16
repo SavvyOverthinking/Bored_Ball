@@ -3,13 +3,14 @@
  * CLASSIC ARCADE PROGRESSION:
  * - Days 1-3: Easy (top of screen, few blocks)
  * - Days 4-7: Medium (top half, more blocks)
- * - Days 8-10: Hard (3/4 screen, many blocks)
- * - Days 11+: Full difficulty (plateau)
+ * - Days 8-15: Progressive meeting creep
+ * - Days 16-25: Calendar crunch and finale
  */
 
 import { mulberry32 } from '@game/utils/rng';
 import { type MeetingType, canAppearInWeek } from '@game/systems/physicsModifiers';
 import { curve } from '@game/utils/levelCurve';
+import { CAMPAIGN_TOTAL_DAYS } from './campaign';
 
 // Title templates for all meeting types
 const MEETING_TITLES: Record<MeetingType, string[]> = {
@@ -47,16 +48,16 @@ export const LUNCH_END_MIN = 300;   // 2:00 PM
 
 const INTRO_WEEK: Record<MeetingType, number> = {
   personal: 1,
-  lunch: 1,
+  lunch: 3,
   '1:1': 2,
-  team: 3,
-  boss: 5,
-  sticky: 7,
+  team: 4,
+  boss: 6,
+  sticky: 8,
+  optional: 9,
   focus: 10,
-  optional: 10,
-  recurring: 14,
-  allhands: 20,
-  emergency: 26,
+  recurring: 13,
+  allhands: 18,
+  emergency: 21,
 };
 
 interface ProgressionConfig {
@@ -78,11 +79,14 @@ function lerp(start: number, end: number, t: number): number {
 
 function getMeetingCount(week: number): number {
   if (week === 1) return 10;
-  if (week === 2) return 12;
-  if (week === 3) return 15;
-  if (week <= 5) return 15 + (week - 3) * 3; // 18 -> 21
-  if (week <= 20) return Math.round(21 + (week - 5) * 1.65); // 23 -> 46
-  return Math.round(46 + (week - 20) * 0.45); // 46 -> 60
+  if (week === 2) return 10;
+  if (week === 3) return 12;
+  if (week === 4) return 14;
+  if (week === 5) return 16;
+  if (week <= 10) return Math.round(16 + (week - 5) * 1.2);  // 17 -> 22
+  if (week <= 15) return Math.round(22 + (week - 10) * 1.4); // 23 -> 29
+  if (week <= 20) return Math.round(29 + (week - 15) * 1.2); // 30 -> 35
+  return Math.round(35 + (week - 20) * 0.6);                 // 36 -> 38
 }
 
 function getAvailableTypes(week: number): MeetingType[] {
@@ -92,7 +96,7 @@ function getAvailableTypes(week: number): MeetingType[] {
 
 function getProgressionConfig(week: number): ProgressionConfig {
   const tuning = curve(week);
-  const coverageRamp = Math.min(1, (week - 1) / 19);
+  const coverageRamp = Math.min(1, (week - 1) / (CAMPAIGN_TOTAL_DAYS - 1));
   const maxStartMin = roundToSlot(lerp(120, DAY_MINS - tuning.minBlockMins, coverageRamp));
   const availableTypes = getAvailableTypes(week);
   const weights: Partial<Record<MeetingType, number>> = {};
@@ -103,17 +107,17 @@ function getProgressionConfig(week: number): ProgressionConfig {
     }
   };
 
-  setWeight('personal', week < 6 ? 4 : 2);
+  setWeight('personal', week < 6 ? 4 : 1.8);
   setWeight('lunch', 2 + tuning.lunchRate * 8);
-  setWeight('1:1', 3);
+  setWeight('1:1', week < 6 ? 3.5 : 2.4);
   setWeight('team', Math.max(1.2, tuning.teamRate * 10));
   setWeight('boss', Math.max(0.8, tuning.bossRate * 12));
-  setWeight('sticky', week < 14 ? 1.4 : 0.9);
+  setWeight('sticky', week < 14 ? 1.2 : 0.8);
   setWeight('focus', 0.9);
   setWeight('optional', 1.1);
   setWeight('recurring', 0.8);
-  setWeight('allhands', 0.35);
-  setWeight('emergency', 0.45);
+  setWeight('allhands', 0.45);
+  setWeight('emergency', 0.55);
 
   return {
     maxStartMin,
@@ -124,7 +128,7 @@ function getProgressionConfig(week: number): ProgressionConfig {
     maxPerType: {
       recurring: 4,
       allhands: 2,
-      emergency: 3,
+      emergency: 2,
     },
   };
 }
@@ -174,14 +178,86 @@ function generateWeek1Simple(): Meeting[] {
   return meetings;
 }
 
+function getScriptedMeetings(week: number): Meeting[] {
+  const scripted: Meeting[] = [];
+
+  const add = (day: number, startMin: number, duration: number, type: MeetingType, title?: string) => {
+    scripted.push({
+      day,
+      startMin,
+      endMin: startMin + duration,
+      type,
+      title: title || MEETING_TITLES[type][0]
+    });
+  };
+
+  if (week === 2) {
+    add(1, 0, 60, '1:1', 'First 1:1');
+    add(3, 60, 60, '1:1', 'Project Check-in');
+  }
+
+  if (week === 3) {
+    add(1, LUNCH_START_MIN, 60, 'lunch', 'Lunch Break');
+    add(3, LUNCH_START_MIN + 45, 45, 'lunch', 'Team Lunch');
+  }
+
+  if (week === 4) {
+    add(1, 45, 60, 'team', 'First Team Sync');
+    add(3, 105, 60, 'team', 'Retro');
+  }
+
+  if (week === 5) {
+    add(0, 30, 60, 'team', 'Friday Standup');
+    add(2, LUNCH_START_MIN, 60, 'lunch', 'Lunch Reset');
+    add(4, 120, 60, '1:1', 'Friday Check-in');
+  }
+
+  if (week === 6) {
+    add(2, 75, 60, 'boss', 'First Boss Review');
+  }
+
+  if (week === 8) {
+    add(2, 150, 60, 'sticky', 'Sticky Reminder');
+  }
+
+  if (week === 10) {
+    add(1, 120, 60, 'optional', 'Optional Office Hours');
+    add(3, 180, 60, 'focus', 'Focus Time');
+  }
+
+  if (week === 13) {
+    add(2, 90, 60, 'recurring', 'Recurring Standup');
+  }
+
+  if (week === 18) {
+    add(2, 135, 90, 'allhands', 'All-Hands Meeting');
+  }
+
+  if (week === 21) {
+    add(2, 75, 45, 'emergency', 'Emergency Standup');
+  }
+
+  if (week === CAMPAIGN_TOTAL_DAYS) {
+    add(1, 60, 60, 'boss', 'Final Manager Review');
+    add(2, 150, 90, 'allhands', 'Final All-Hands');
+    add(3, 240, 45, 'emergency', 'Launch Incident');
+  }
+
+  return scripted;
+}
+
 /**
  * Generate meetings with staged complexity.
  */
 function generateProgressionWeek(week: number): Meeting[] {
-  const meetings: Meeting[] = [];
+  const meetings: Meeting[] = getScriptedMeetings(week);
   const rand = mulberry32(0xB0B0 + week);
   const config = getProgressionConfig(week);
   const typeCounts = new Map<MeetingType, number>();
+
+  meetings.forEach(meeting => {
+    typeCounts.set(meeting.type, (typeCounts.get(meeting.type) || 0) + 1);
+  });
 
   const pickType = (): MeetingType => {
     const eligible = Object.entries(config.weights)
@@ -223,7 +299,9 @@ function generateProgressionWeek(week: number): Meeting[] {
     return titles[Math.floor(rand() * titles.length)];
   };
 
-  for (let i = 0; i < config.meetingCount; i++) {
+  const generatedCount = Math.max(0, config.meetingCount - meetings.length);
+
+  for (let i = 0; i < generatedCount; i++) {
     const type = pickType();
     const duration = pickDuration(type);
     let day = Math.floor(rand() * 5);

@@ -12,7 +12,7 @@ describe('dayProgression URL helpers', () => {
 
   it('rejects invalid day values', () => {
     expect(readDayOverride('?day=0')).toBeUndefined();
-    expect(readDayOverride('?day=53')).toBeUndefined();
+    expect(readDayOverride('?day=26')).toBeUndefined();
     expect(readDayOverride('?day=banana')).toBeUndefined();
   });
 

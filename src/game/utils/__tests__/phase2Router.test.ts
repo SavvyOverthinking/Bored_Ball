@@ -7,12 +7,12 @@ import {
 } from '../phase2Router';
 
 describe('phase2Router', () => {
-  it('treats every fifth cleared calendar week as a bonus trigger', () => {
+  it('treats every fifth cleared calendar day as a bonus trigger before the finale', () => {
     expect(isBonusWeek(1)).toBe(false);
     expect(isBonusWeek(4)).toBe(false);
     expect(isBonusWeek(5)).toBe(true);
     expect(isBonusWeek(10)).toBe(true);
-    expect(isBonusWeek(52)).toBe(false);
+    expect(isBonusWeek(25)).toBe(false);
   });
 
   it('keeps direct week navigation on the calendar scene', () => {
@@ -21,11 +21,12 @@ describe('phase2Router', () => {
   });
 
   it('lists all weekend bonus trigger weeks', () => {
-    expect(getAllBonusWeeks()).toEqual([5, 10, 15, 20, 25, 30, 35, 40, 45, 50]);
+    expect(getAllBonusWeeks()).toEqual([5, 10, 15, 20]);
   });
 
   it('labels bonus weeks as post-clear rewards', () => {
-    expect(formatWeekDisplay(5)).toBe('Day 5 / 52 + weekend bonus');
-    expect(formatWeekDisplay(6)).toBe('Day 6 / 52');
+    expect(formatWeekDisplay(5)).toBe('Day 5 / 25 + weekend bonus');
+    expect(formatWeekDisplay(6)).toBe('Day 6 / 25');
+    expect(formatWeekDisplay(25)).toBe('Day 25 / 25');
   });
 });

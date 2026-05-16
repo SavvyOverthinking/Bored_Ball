@@ -23,15 +23,15 @@
 
 ## 🎮 Game Overview
 
-Clear your Outlook calendar by destroying all meetings with physics-based gameplay! Navigate through a 52-day work-year of back-to-back meetings, double bookings, and meeting hell. Each meeting type has unique physics effects that modify ball behavior.
+Clear your Outlook calendar by destroying meetings with physics-based gameplay! Navigate a 25-workday campaign across five escalating weeks of onboarding, team ramp-up, meeting creep, calendar crunch, and final-Friday chaos.
 
 ### Features
 
 ✨ **Outlook-Inspired Design** - Authentic Microsoft calendar aesthetic  
-🎯 **52-Day Campaign** - Clear an entire year of meetings  
-⚡ **Progressive Difficulty** - Gentle start, brutal endgame (Phase 2)  
+🎯 **25-Day Campaign** - Five work weeks with a clear beginning, middle, and finale
+⚡ **Teaching Progression** - New meeting types arrive one at a time
 🎮 **Daily Power-ups** - 6 different power-ups to help you survive
-🏖️ **Weekend Bonus Stages** - Email dodge challenges after every 5th cleared day
+🏖️ **Weekend Reset Stages** - Short email dodge breaks after each work week
 ⚡ **Physics Effects** - Each meeting type modifies gameplay  
 📊 **Multi-Hit Blocks** - Boss meetings require 3 hits to destroy  
 🎨 **Theme Support** - Outlook, Google Calendar, or default themes  
@@ -114,7 +114,7 @@ npm run preview
 ### Scoring
 - **5 points** per hit
 - **Bonus points** for destroying harder blocks (Boss = 30 total)
-- Score persists across all 52 days
+- Score persists across all 25 days
 
 ### 🎮 Power-ups (Phase 2)
 
@@ -216,7 +216,7 @@ The game currently uses code-drawn graphics. For Outlook-authentic sprites:
 - [ ] Blocks require correct number of hits
 - [ ] Ball speed clamped (doesn't go infinite)
 - [ ] Tuned max balls enforced (2 early, up to 4 late game)
-- [ ] Day progression works (1 → 52)
+- [ ] Day progression works (1 → 25)
 - [ ] Score persists across days
 - [ ] Lives system functional
 - [ ] Win/lose overlays display
@@ -267,21 +267,22 @@ This project uses **pre-built deployment** to avoid CI build issues.
 - **Velocity Clamping:** Applied after every collision
 
 ### Progression
-- **52 Days** total (full work-year)
+- **25 Days** total (5 work weeks)
 - **3 Lives** per game
 - Lives carry over between days
-- Score accumulates across entire year
+- Weekend reset stages can refill 1 life up to the normal cap
+- Score accumulates across the full campaign
 
 ---
 
 ## 🔮 Roadmap
 
 ### ✅ Phase 2 Features (Implemented!)
-- [x] Progressive difficulty curve (days 1-52)
+- [x] Progressive difficulty curve (days 1-25)
 - [x] Daily power-ups (6 types)
-- [x] Weekend bonus stages (after every 5th cleared day)
+- [x] Weekend reset stages (after days 5, 10, 15, and 20)
 - [x] Gentler early game (days 1-5)
-- [x] Difficulty scaling (gets brutal by day 52!)
+- [x] Difficulty scaling through a final-Friday campaign cap
 
 ### Phase 3 - Planned Features
 - [ ] Sound effects (paddle hit, block destroy)

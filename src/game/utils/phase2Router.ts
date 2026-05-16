@@ -5,12 +5,13 @@
  */
 
 import { curve, type LevelTuning } from '@game/utils/levelCurve';
+import { CAMPAIGN_TOTAL_DAYS, WORK_DAYS_PER_WEEK } from './campaign';
 
 /**
  * Check if clearing this calendar day should trigger a weekend bonus.
  */
 export const isBonusWeek = (week: number): boolean => {
-  return week > 0 && week % 5 === 0;
+  return week > 0 && week < CAMPAIGN_TOTAL_DAYS && week % WORK_DAYS_PER_WEEK === 0;
 };
 
 /**
@@ -66,24 +67,24 @@ export function startWeekendBonus(
  */
 export const getDifficultyName = (week: number): string => {
   if (week <= 5) return 'Onboarding';
-  if (week <= 15) return 'Easy';
-  if (week <= 30) return 'Medium';
-  if (week <= 45) return 'Hard';
-  return 'Brutal';
+  if (week <= 10) return 'Team Ramp';
+  if (week <= 15) return 'Meeting Creep';
+  if (week <= 20) return 'Calendar Crunch';
+  return 'Final Friday';
 };
 
 /**
- * Calculate next week number (with wrapping at 52)
+ * Calculate next day number (with wrapping at campaign end)
  */
 export const getNextWeek = (currentWeek: number): number => {
-  return currentWeek >= 52 ? 1 : currentWeek + 1;
+  return currentWeek >= CAMPAIGN_TOTAL_DAYS ? 1 : currentWeek + 1;
 };
 
 /**
  * Check if this is the final week
  */
 export const isFinalWeek = (week: number): boolean => {
-  return week === 52;
+  return week === CAMPAIGN_TOTAL_DAYS;
 };
 
 /**
@@ -97,9 +98,9 @@ export const getTuningForWeek = (week: number): LevelTuning => {
  * Phase 2 game flow metadata
  */
 export const PHASE2_FLOW = {
-  TOTAL_WEEKS: 52,
-  BONUS_FREQUENCY: 5,     // After every 5th cleared calendar day
-  INTRO_WEEKS: 5,         // Days 1-5 are easier
+  TOTAL_WEEKS: CAMPAIGN_TOTAL_DAYS,
+  BONUS_FREQUENCY: WORK_DAYS_PER_WEEK,
+  INTRO_WEEKS: WORK_DAYS_PER_WEEK,
   STARTING_LIVES: 3,
   STARTING_SCORE: 0
 };
@@ -109,7 +110,7 @@ export const PHASE2_FLOW = {
  */
 export const getAllBonusWeeks = (): number[] => {
   const bonusWeeks: number[] = [];
-  for (let w = 1; w <= 52; w++) {
+  for (let w = 1; w <= CAMPAIGN_TOTAL_DAYS; w++) {
     if (isBonusWeek(w)) {
       bonusWeeks.push(w);
     }
@@ -122,9 +123,9 @@ export const getAllBonusWeeks = (): number[] => {
  */
 export const formatWeekDisplay = (week: number): string => {
   if (isBonusWeek(week)) {
-    return `Day ${week} / 52 + weekend bonus`;
+    return `Day ${week} / ${CAMPAIGN_TOTAL_DAYS} + weekend bonus`;
   }
-  return `Day ${week} / 52`;
+  return `Day ${week} / ${CAMPAIGN_TOTAL_DAYS}`;
 };
 
 export default {
