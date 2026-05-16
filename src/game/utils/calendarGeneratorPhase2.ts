@@ -254,15 +254,22 @@ function generateProgressionWeek(week: number): Meeting[] {
   const rand = mulberry32(0xB0B0 + week);
   const config = getProgressionConfig(week);
   const typeCounts = new Map<MeetingType, number>();
+  const lunchDays = new Set<number>();
 
   meetings.forEach(meeting => {
     typeCounts.set(meeting.type, (typeCounts.get(meeting.type) || 0) + 1);
+    if (meeting.type === 'lunch') {
+      lunchDays.add(meeting.day);
+    }
   });
 
   const pickType = (): MeetingType => {
     const eligible = Object.entries(config.weights)
       .filter(([type]) => {
         const meetingType = type as MeetingType;
+        if (meetingType === 'lunch' && lunchDays.size >= 5) {
+          return false;
+        }
         const max = config.maxPerType[meetingType];
         return max === undefined || (typeCounts.get(meetingType) || 0) < max;
       }) as Array<[MeetingType, number]>;
@@ -308,6 +315,9 @@ function generateProgressionWeek(week: number): Meeting[] {
     let startMin: number;
 
     if (type === 'lunch') {
+      const availableLunchDays = [0, 1, 2, 3, 4].filter(candidate => !lunchDays.has(candidate));
+      day = availableLunchDays[Math.floor(rand() * availableLunchDays.length)] ?? day;
+      lunchDays.add(day);
       startMin = pickLunchStart(duration);
     } else if (meetings.length > 0 && rand() < config.overlapRate) {
       const source = meetings[Math.floor(rand() * meetings.length)];

@@ -1,6 +1,6 @@
 /**
- * Simple Sound Effects using Web Audio API
- * Generates beep sounds without needing audio files
+ * Office-style sound effects using the Web Audio API.
+ * Keeps audio self-contained while avoiding harsh arcade beeps.
  */
 
 /**
@@ -24,75 +24,118 @@ class SoundEffects {
     }
   }
 
-  /**
-   * Play a simple tone
-   */
-  private playTone(frequency: number, duration: number, volume: number = 0.1) {
+  private get currentTime(): number {
+    return this.audioContext?.currentTime ?? 0;
+  }
+
+  private playTone(
+    frequency: number,
+    duration: number,
+    volume: number = 0.05,
+    type: OscillatorType = 'sine',
+    delay: number = 0
+  ) {
     if (!this.enabled || !this.audioContext) return;
 
     const oscillator = this.audioContext.createOscillator();
     const gainNode = this.audioContext.createGain();
+    const start = this.currentTime + delay;
 
     oscillator.connect(gainNode);
     gainNode.connect(this.audioContext.destination);
 
     oscillator.frequency.value = frequency;
-    oscillator.type = 'sine';
+    oscillator.type = type;
 
-    gainNode.gain.setValueAtTime(volume, this.audioContext.currentTime);
-    gainNode.gain.exponentialRampToValueAtTime(0.001, this.audioContext.currentTime + duration);
+    gainNode.gain.setValueAtTime(0.001, start);
+    gainNode.gain.exponentialRampToValueAtTime(volume, start + 0.012);
+    gainNode.gain.exponentialRampToValueAtTime(0.001, start + duration);
 
-    oscillator.start(this.audioContext.currentTime);
-    oscillator.stop(this.audioContext.currentTime + duration);
+    oscillator.start(start);
+    oscillator.stop(start + duration);
+  }
+
+  private playNoise(duration: number, volume: number, delay: number = 0) {
+    if (!this.enabled || !this.audioContext) return;
+
+    const sampleRate = this.audioContext.sampleRate;
+    const buffer = this.audioContext.createBuffer(1, Math.max(1, Math.ceil(sampleRate * duration)), sampleRate);
+    const data = buffer.getChannelData(0);
+
+    for (let i = 0; i < data.length; i++) {
+      data[i] = (Math.random() * 2 - 1) * (1 - i / data.length);
+    }
+
+    const source = this.audioContext.createBufferSource();
+    const filter = this.audioContext.createBiquadFilter();
+    const gainNode = this.audioContext.createGain();
+    const start = this.currentTime + delay;
+
+    source.buffer = buffer;
+    filter.type = 'highpass';
+    filter.frequency.value = 1200;
+
+    source.connect(filter);
+    filter.connect(gainNode);
+    gainNode.connect(this.audioContext.destination);
+
+    gainNode.gain.setValueAtTime(volume, start);
+    gainNode.gain.exponentialRampToValueAtTime(0.001, start + duration);
+
+    source.start(start);
+    source.stop(start + duration);
   }
 
   /**
-   * Paddle hit sound - mid tone
+   * Paddle hit sound - soft toolbar click
    */
   paddleHit() {
-    this.playTone(440, 0.05, 0.08);
+    this.playTone(520, 0.035, 0.025, 'triangle');
+    this.playNoise(0.025, 0.012);
   }
 
   /**
-   * Block hit sound - higher tone
+   * Block hit sound - calendar selection tick
    */
   blockHit() {
-    this.playTone(660, 0.08, 0.1);
+    this.playTone(740, 0.05, 0.032, 'sine');
+    this.playTone(990, 0.045, 0.018, 'sine', 0.035);
   }
 
   /**
-   * Block destroyed sound - chord
+   * Block destroyed sound - archive/delete confirmation
    */
   blockDestroyed() {
-    this.playTone(880, 0.1, 0.12);
-    setTimeout(() => this.playTone(1100, 0.1, 0.08), 50);
+    this.playNoise(0.08, 0.022);
+    this.playTone(660, 0.06, 0.032, 'triangle', 0.015);
+    this.playTone(880, 0.09, 0.024, 'sine', 0.07);
   }
 
   /**
-   * Life lost sound - descending tone
+   * Life lost sound - muted warning
    */
   lifeLost() {
-    this.playTone(330, 0.15, 0.15);
-    setTimeout(() => this.playTone(220, 0.2, 0.15), 100);
+    this.playTone(392, 0.12, 0.055, 'triangle');
+    this.playTone(294, 0.18, 0.045, 'triangle', 0.11);
   }
 
   /**
-   * Week cleared sound - ascending tones
+   * Week cleared sound - meeting accepted chime
    */
   weekCleared() {
-    this.playTone(523, 0.1, 0.12); // C
-    setTimeout(() => this.playTone(659, 0.1, 0.12), 100); // E
-    setTimeout(() => this.playTone(784, 0.15, 0.15), 200); // G
+    this.playTone(587, 0.08, 0.04, 'sine');
+    this.playTone(740, 0.09, 0.035, 'sine', 0.08);
+    this.playTone(988, 0.16, 0.03, 'sine', 0.18);
   }
 
   /**
-   * Year cleared sound - victory fanfare
+   * Campaign cleared sound - Outlook-style success flourish
    */
   yearCleared() {
-    this.playTone(523, 0.1, 0.12);
-    setTimeout(() => this.playTone(659, 0.1, 0.12), 100);
-    setTimeout(() => this.playTone(784, 0.1, 0.12), 200);
-    setTimeout(() => this.playTone(1047, 0.3, 0.15), 300);
+    this.playTone(523, 0.08, 0.04, 'sine');
+    this.playTone(659, 0.08, 0.04, 'sine', 0.08);
+    this.playTone(784, 0.1, 0.038, 'sine', 0.16);
+    this.playTone(1047, 0.22, 0.035, 'triangle', 0.26);
   }
 
   /**

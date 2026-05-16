@@ -139,6 +139,21 @@ describe('calendarGeneratorPhase2', () => {
           });
         });
       });
+
+      it('limits lunch meetings to one per workday', () => {
+        for (let campaignDay = 1; campaignDay <= 25; campaignDay++) {
+          const lunchCountsByDay = new Map<number, number>();
+          generateWeek(campaignDay)
+            .filter(m => m.type === 'lunch')
+            .forEach(lunch => {
+              lunchCountsByDay.set(lunch.day, (lunchCountsByDay.get(lunch.day) || 0) + 1);
+            });
+
+          lunchCountsByDay.forEach(count => {
+            expect(count).toBeLessThanOrEqual(1);
+          });
+        }
+      });
     });
   });
 
