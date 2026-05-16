@@ -17,19 +17,19 @@ function App() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm" style={{ fontFamily: 'Segoe UI, sans-serif' }}>
           <div className="bg-white p-3 rounded-lg shadow-sm">
             <div className="font-semibold text-purple-600 mb-1">📈 Gentle Start</div>
-            <div className="text-gray-600 text-xs">Weeks 1-5: Larger paddle, slower ball, easier meetings</div>
+            <div className="text-gray-600 text-xs">25 workdays across 5 escalating weeks</div>
           </div>
           <div className="bg-white p-3 rounded-lg shadow-sm">
-            <div className="font-semibold text-pink-600 mb-1">⚡ Weekly Power-ups</div>
-            <div className="text-gray-600 text-xs">One power-up per week: Coffee, Shield, Cleanup & more</div>
+            <div className="font-semibold text-pink-600 mb-1">⚡ Daily Power-ups</div>
+            <div className="text-gray-600 text-xs">One power-up per day: Coffee, Shield, Cleanup & more</div>
           </div>
           <div className="bg-white p-3 rounded-lg shadow-sm">
             <div className="font-semibold text-blue-600 mb-1">🌴 Weekend Bonus</div>
-            <div className="text-gray-600 text-xs">Every 5th week: Email Dodge challenge for bonus points</div>
+            <div className="text-gray-600 text-xs">After each week: short email dodge reset, bonus points, life refill</div>
           </div>
           <div className="bg-white p-3 rounded-lg shadow-sm">
             <div className="font-semibold text-orange-600 mb-1">🎯 Progressive Difficulty</div>
-            <div className="text-gray-600 text-xs">Gradually harder: density, speed, boss meetings increase</div>
+            <div className="text-gray-600 text-xs">New meeting types arrive one at a time through the campaign</div>
           </div>
         </div>
       </div>

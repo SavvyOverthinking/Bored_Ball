@@ -54,7 +54,7 @@ export function CalendarBreakout() {
         
         <div className="mt-4 pt-4 border-t border-gray-200">
           <p className="text-xs text-gray-500">
-            <strong>New:</strong> 36 meetings with 15-min slots & double bookings • Max 3 balls • 52 weeks to clear
+            <strong>New:</strong> 36 meetings with 15-min slots & double bookings • Max 3 balls • 25 days to clear
           </p>
         </div>
       </div>

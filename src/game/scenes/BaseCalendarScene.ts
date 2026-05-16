@@ -1,11 +1,12 @@
 import Phaser from 'phaser';
 import { getCalendarGridConfig, getBoardDimensions } from '@game/utils/calendarGenerator';
-import { applyMeetingEffect, type MeetingType } from '@game/systems/physicsModifiers';
+import { applyMeetingEffect, getPointsMultiplier, type MeetingType } from '@game/systems/physicsModifiers';
 import { BallPool } from '@game/objects/BallPool';
-import { calculatePaddleBounceAngle, PHYSICS, STUCK_DETECTION, SCORING } from '@config/constants';
+import { calculatePaddleBounceAngle, GAME, PHYSICS, STUCK_DETECTION, SCORING } from '@config/constants';
 import { sound } from '@game/systems/soundEffects';
 import { gameEventBus } from '@game/systems/GameEventBus';
 import { ComboManager } from '@game/systems/comboSystem';
+import { readDayOverride } from '@game/utils/dayProgression';
 import type { PhaserBall, PhaserBlock, PhaserPaddle, BallPositionEntry, LoaderFile, GameObjectWithData } from '@/types/game';
 import { THEMES, getThemeFromUrl, type ThemeName } from '@styles/theme';
 
@@ -29,7 +30,7 @@ export abstract class BaseCalendarScene extends Phaser.Scene {
   protected score: number = 0;
   protected lives: number = 3;
   protected currentWeek: number = 1;
-  protected totalWeeks: number = 52;
+  protected totalWeeks: number = GAME.TOTAL_WEEKS;
   protected gameStarted: boolean = false;
   protected gameOver: boolean = false;
   protected isPaused: boolean = false;
@@ -54,7 +55,15 @@ export abstract class BaseCalendarScene extends Phaser.Scene {
   /**
    * Initialize scene - reset all state and emit initial values via event bus
    */
-  init(_data: Record<string, unknown> = {}) {
+  init(data: Record<string, unknown> = {}) {
+    const incomingWeek = typeof data.week === 'number' ? data.week : undefined;
+    const incomingScore = typeof data.score === 'number' ? data.score : undefined;
+    const incomingLives = typeof data.lives === 'number' ? data.lives : undefined;
+
+    this.currentWeek = readDayOverride() ?? incomingWeek ?? this.currentWeek;
+    this.score = incomingScore ?? this.score;
+    this.lives = incomingLives ?? this.lives;
+
     // CRITICAL: Reset all game state for fresh start
     this.gameStarted = false;
     this.gameOver = false;
@@ -106,6 +115,20 @@ export abstract class BaseCalendarScene extends Phaser.Scene {
    */
   protected getColorForMeetingType(type: MeetingType): number {
     return this.theme.colors[type] || this.theme.colors['1:1'];
+  }
+
+  /**
+   * Extra score multiplier supplied by temporary scene effects.
+   */
+  protected getSceneScoreMultiplier(): number {
+    return 1;
+  }
+
+  /**
+   * Hook for subclasses that need to react when a block is destroyed.
+   */
+  protected onBlockDestroyed(_block: PhaserBlock, _blockId: string, _meetingType: MeetingType): void {
+    // Optional subclass hook.
   }
 
   /**
@@ -468,42 +491,63 @@ export abstract class BaseCalendarScene extends Phaser.Scene {
       // Could add visual/audio effects here
     }
 
-    if (newHP <= 0) {
-      sound.blockDestroyed();
-      block.destroy();
-
-      // Find and remove associated text and accent bar
-      this.children.getChildren().forEach((child) => {
-        const childWithData = child as GameObjectWithData;
-        if (childWithData.getData && childWithData.getData('blockId') === blockId) {
-          child.destroy();
-        }
-      });
-
-      this.blockHitPoints.delete(blockId);
-      // Apply combo multiplier to destroy points
-      const points = Math.round(currentHP * SCORING.POINTS_PER_DESTROY * multiplier);
-      this.score += points;
-      this.updateScore();
-    } else {
-      sound.blockHit();
-      this.blockHitPoints.set(blockId, newHP);
-
-      this.tweens.add({
-        targets: block,
-        alpha: 0.5,
-        duration: 100,
-        yoyo: true,
-        ease: 'Power1'
-      });
-
-      // Apply combo multiplier to hit points
-      const points = Math.round(SCORING.POINTS_PER_HIT * multiplier);
-      this.score += points;
-      this.updateScore();
-    }
+    this.applyBlockDamage(block, blockId, meetingType, currentHP, newHP, multiplier);
 
     applyMeetingEffect(meetingType, ball, this);
+  }
+
+  /**
+   * Apply damage and scoring to a block. Shared by ball hits and special effects.
+   */
+  protected applyBlockDamage(
+    block: PhaserBlock,
+    blockId: string,
+    meetingType: MeetingType,
+    currentHP: number,
+    newHP: number,
+    scoreMultiplier: number
+  ): boolean {
+    const totalMultiplier = scoreMultiplier * getPointsMultiplier(meetingType) * this.getSceneScoreMultiplier();
+
+    if (newHP <= 0) {
+      sound.blockDestroyed();
+      this.destroyBlockAndChildren(block, blockId);
+
+      const points = Math.round(currentHP * SCORING.POINTS_PER_DESTROY * totalMultiplier);
+      this.score += points;
+      this.updateScore();
+      this.onBlockDestroyed(block, blockId, meetingType);
+      return true;
+    }
+
+    sound.blockHit();
+    this.blockHitPoints.set(blockId, newHP);
+
+    this.tweens.add({
+      targets: block,
+      alpha: 0.5,
+      duration: 100,
+      yoyo: true,
+      ease: 'Power1'
+    });
+
+    const points = Math.round(SCORING.POINTS_PER_HIT * totalMultiplier);
+    this.score += points;
+    this.updateScore();
+    return false;
+  }
+
+  protected destroyBlockAndChildren(block: PhaserBlock, blockId: string): void {
+    block.destroy();
+
+    this.children.getChildren().forEach((child) => {
+      const childWithData = child as GameObjectWithData;
+      if (childWithData.getData && childWithData.getData('blockId') === blockId) {
+        child.destroy();
+      }
+    });
+
+    this.blockHitPoints.delete(blockId);
   }
 
   /**
@@ -791,7 +835,7 @@ export abstract class BaseCalendarScene extends Phaser.Scene {
       this.gameOver = true;
       gameEventBus.emitGameEvent('GAME_OVER', { gameOver: true, finalScore: this.score });
       gameEventBus.emitGameEvent('WEEK_CLEARED', { week: this.currentWeek, score: this.score });
-      this.showOverlay('Year Cleared! 🎉🎊', `You cleared all 52 weeks!\nFinal Score: ${this.score}\n\nClick to restart`);
+      this.showOverlay('Quarter Survived! 🎉🎊', `You cleared all ${this.totalWeeks} workdays!\nFinal Score: ${this.score}\n\nClick to restart`);
 
       this.input.once('pointerdown', () => {
         this.scene.restart();
@@ -801,7 +845,7 @@ export abstract class BaseCalendarScene extends Phaser.Scene {
       this.gameOver = true;
       gameEventBus.emitGameEvent('GAME_OVER', { gameOver: true });
       gameEventBus.emitGameEvent('WEEK_CLEARED', { week: this.currentWeek, score: this.score });
-      this.showOverlay(`Week ${this.currentWeek} Cleared! 🎉`, `Great job! Moving to Week ${this.currentWeek + 1}...\nScore: ${this.score}\n\nClick to continue`);
+      this.showOverlay(`Day ${this.currentWeek} Cleared! 🎉`, `Great job! Moving to Day ${this.currentWeek + 1}...\nScore: ${this.score}\n\nClick to continue`);
 
       this.input.once('pointerdown', () => {
         this.handleNextWeek();

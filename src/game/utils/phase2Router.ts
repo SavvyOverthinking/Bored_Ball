@@ -1,24 +1,26 @@
 /**
  * Phase 2 Router
- * Manages week transitions and determines which scene to show
- * - Regular weeks: CalendarScenePhase2
- * - Every 5th week: WeekendStageScene (bonus)
+ * Manages day transitions and determines which scene to show.
+ * A 5-day run is one work week; every fifth cleared day awards a weekend bonus.
  */
 
 import { curve, type LevelTuning } from '@game/utils/levelCurve';
+import { CAMPAIGN_TOTAL_DAYS, WORK_DAYS_PER_WEEK } from './campaign';
 
 /**
- * Check if a week is a bonus weekend week
+ * Check if clearing this calendar day should trigger a weekend bonus.
  */
 export const isBonusWeek = (week: number): boolean => {
-  return week > 0 && week % 5 === 0;
+  return week > 0 && week < CAMPAIGN_TOTAL_DAYS && week % WORK_DAYS_PER_WEEK === 0;
 };
 
 /**
- * Get the appropriate scene key for a week
+ * Get the primary scene key for a calendar day.
+ * Weekend stages are routed after a qualifying day is cleared, not instead of
+ * that day's calendar board.
  */
-export const getSceneForWeek = (week: number): string => {
-  return isBonusWeek(week) ? 'WeekendStageScene' : 'CalendarScenePhase2';
+export const getSceneForWeek = (_week: number): string => {
+  return 'CalendarScenePhase2';
 };
 
 /**
@@ -31,27 +33,33 @@ interface AdditionalSceneData {
 }
 
 /**
- * Start the appropriate scene for a given week
- * Handles routing between calendar and weekend bonus stages
+ * Start the appropriate scene for a given day.
  */
 export function startWeek(scene: Phaser.Scene, week: number, additionalData: AdditionalSceneData = {}) {
-  if (isBonusWeek(week)) {
-    // Weekend Bonus Stage
-    console.log(`🌴 Week ${week} - WEEKEND BONUS STAGE!`);
-    scene.scene.start('WeekendStageScene', {
-      week,
-      ...additionalData
-    });
-  } else {
-    // Regular Calendar Week with tuning
-    const tuning = curve(week);
-    console.log(`📅 Week ${week} - Difficulty: ${getDifficultyName(week)}`);
-    scene.scene.start('CalendarScenePhase2', {
-      week,
-      tuning,
-      ...additionalData
-    });
-  }
+  const tuning = curve(week);
+  console.log(`📅 Day ${week} - Difficulty: ${getDifficultyName(week)}`);
+  scene.scene.start('CalendarScenePhase2', {
+    week,
+    tuning,
+    ...additionalData
+  });
+}
+
+/**
+ * Start the weekend bonus awarded after a calendar day is cleared.
+ */
+export function startWeekendBonus(
+  scene: Phaser.Scene,
+  completedWeek: number,
+  nextWeek: number,
+  additionalData: AdditionalSceneData = {}
+) {
+  console.log(`🌴 Day ${completedWeek} cleared - WEEKEND BONUS STAGE!`);
+  scene.scene.start('WeekendStageScene', {
+    week: completedWeek,
+    nextWeek,
+    ...additionalData
+  });
 }
 
 /**
@@ -59,24 +67,24 @@ export function startWeek(scene: Phaser.Scene, week: number, additionalData: Add
  */
 export const getDifficultyName = (week: number): string => {
   if (week <= 5) return 'Onboarding';
-  if (week <= 15) return 'Easy';
-  if (week <= 30) return 'Medium';
-  if (week <= 45) return 'Hard';
-  return 'Brutal';
+  if (week <= 10) return 'Team Ramp';
+  if (week <= 15) return 'Meeting Creep';
+  if (week <= 20) return 'Calendar Crunch';
+  return 'Final Friday';
 };
 
 /**
- * Calculate next week number (with wrapping at 52)
+ * Calculate next day number (with wrapping at campaign end)
  */
 export const getNextWeek = (currentWeek: number): number => {
-  return currentWeek >= 52 ? 1 : currentWeek + 1;
+  return currentWeek >= CAMPAIGN_TOTAL_DAYS ? 1 : currentWeek + 1;
 };
 
 /**
  * Check if this is the final week
  */
 export const isFinalWeek = (week: number): boolean => {
-  return week === 52;
+  return week === CAMPAIGN_TOTAL_DAYS;
 };
 
 /**
@@ -90,9 +98,9 @@ export const getTuningForWeek = (week: number): LevelTuning => {
  * Phase 2 game flow metadata
  */
 export const PHASE2_FLOW = {
-  TOTAL_WEEKS: 52,
-  BONUS_FREQUENCY: 5,     // Every 5th week
-  INTRO_WEEKS: 5,         // Weeks 1-5 are easier
+  TOTAL_WEEKS: CAMPAIGN_TOTAL_DAYS,
+  BONUS_FREQUENCY: WORK_DAYS_PER_WEEK,
+  INTRO_WEEKS: WORK_DAYS_PER_WEEK,
   STARTING_LIVES: 3,
   STARTING_SCORE: 0
 };
@@ -102,7 +110,7 @@ export const PHASE2_FLOW = {
  */
 export const getAllBonusWeeks = (): number[] => {
   const bonusWeeks: number[] = [];
-  for (let w = 1; w <= 52; w++) {
+  for (let w = 1; w <= CAMPAIGN_TOTAL_DAYS; w++) {
     if (isBonusWeek(w)) {
       bonusWeeks.push(w);
     }
@@ -111,19 +119,20 @@ export const getAllBonusWeeks = (): number[] => {
 };
 
 /**
- * Format week number for display
+ * Format day number for display
  */
 export const formatWeekDisplay = (week: number): string => {
   if (isBonusWeek(week)) {
-    return `Week ${week} 🌴 WEEKEND BONUS`;
+    return `Day ${week} / ${CAMPAIGN_TOTAL_DAYS} + weekend bonus`;
   }
-  return `Week ${week} / 52`;
+  return `Day ${week} / ${CAMPAIGN_TOTAL_DAYS}`;
 };
 
 export default {
   isBonusWeek,
   getSceneForWeek,
   startWeek,
+  startWeekendBonus,
   getDifficultyName,
   getNextWeek,
   isFinalWeek,

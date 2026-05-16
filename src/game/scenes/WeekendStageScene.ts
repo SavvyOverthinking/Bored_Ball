@@ -1,16 +1,18 @@
 /**
  * Weekend Email Dodge - Bonus Stage
- * Appears every 5th week (5, 10, 15, 20, ...)
- * Survive 30 seconds without touching falling emails
+ * Appears after every fifth cleared workday.
+ * Short, restorative bonus stage between work weeks.
  */
 
 import Phaser from 'phaser';
 import { getBoardDimensions } from '@game/utils/calendarGenerator';
 import { sound } from '@game/systems/soundEffects';
-import { WEEKEND_STAGE } from '@config/constants';
+import { GAME, WEEKEND_STAGE } from '@config/constants';
+import { gameEventBus } from '@game/systems/GameEventBus';
 
 interface WeekendStageData {
   week: number;
+  nextWeek?: number;
   score?: number;
   lives?: number;
 }
@@ -19,7 +21,7 @@ export default class WeekendStageScene extends Phaser.Scene {
   private paddle!: Phaser.Physics.Arcade.Image;
   private emails!: Phaser.Physics.Arcade.Group;
 
-  private timerMs: number = WEEKEND_STAGE.DURATION_MS; // 30 seconds
+  private timerMs: number = WEEKEND_STAGE.DURATION_MS;
   private alive: boolean = true;
   private startTime: number = 0;
   
@@ -38,6 +40,7 @@ export default class WeekendStageScene extends Phaser.Scene {
   init(data: WeekendStageData) {
     this.weekData = {
       week: data.week,
+      nextWeek: data.nextWeek || Math.min(GAME.TOTAL_WEEKS, data.week + 1),
       score: data.score || 0,
       lives: data.lives || 3
     };
@@ -51,6 +54,10 @@ export default class WeekendStageScene extends Phaser.Scene {
     
     // Weekend sky blue background
     this.cameras.main.setBackgroundColor('#E3F2FD');
+
+    gameEventBus.emitGameEvent('WEEK_UPDATE', { week: this.weekData.week });
+    gameEventBus.emitGameEvent('GAME_PAUSE', { isPaused: false });
+    gameEventBus.emitGameEvent('GAME_OVER', { gameOver: false });
     
     // Draw weekend UI
     this.drawWeekendUI();
@@ -77,7 +84,7 @@ export default class WeekendStageScene extends Phaser.Scene {
     this.startTime = Date.now();
     this.spawnEmailWaves();
     
-    // Victory timer - survive 30 seconds
+    // Victory timer - survive the restorative break.
     this.time.delayedCall(this.timerMs, () => this.win());
     
     // Update timer display
@@ -111,7 +118,7 @@ export default class WeekendStageScene extends Phaser.Scene {
     badge.strokeRoundedRect(width / 2 - 150, 20, 300, 60, 10);
     
     // Title
-    this.add.text(width / 2, 50, '🌴 WEEKEND BONUS STAGE 🌴', {
+    this.add.text(width / 2, 50, '🌴 WEEKEND RESET 🌴', {
       fontFamily: 'Impact, Arial Black, sans-serif',
       fontSize: '28px',
       color: '#FFFFFF',
@@ -120,15 +127,15 @@ export default class WeekendStageScene extends Phaser.Scene {
     }).setOrigin(0.5);
     
     // Instructions
-    this.add.text(width / 2, 110, '⚠️ DON\'T TOUCH THE EMAILS! ⚠️', {
+    this.add.text(width / 2, 110, 'Dodge emails to earn points and refill 1 life', {
       fontFamily: 'Inter, sans-serif',
       fontSize: '20px',
-      color: '#D32F2F',
+      color: '#0f5f8f',
       fontStyle: 'bold'
     }).setOrigin(0.5);
     
     // Timer display
-    this.timerText = this.add.text(width / 2, 150, 'Time: 30.0s', {
+    this.timerText = this.add.text(width / 2, 150, `Time: ${(this.timerMs / 1000).toFixed(1)}s`, {
       fontFamily: 'Inter, sans-serif',
       fontSize: '24px',
       color: '#1976D2',
@@ -142,6 +149,13 @@ export default class WeekendStageScene extends Phaser.Scene {
       color: '#424242',
       fontStyle: '600'
     });
+
+    this.add.text(width - 20, 20, `Lives: ${this.weekData.lives || 0}`, {
+      fontFamily: 'Inter, sans-serif',
+      fontSize: '16px',
+      color: '#424242',
+      fontStyle: '600'
+    }).setOrigin(1, 0);
   }
 
   private createPaddle() {
@@ -184,12 +198,13 @@ export default class WeekendStageScene extends Phaser.Scene {
   }
 
   private spawnEmailWaves() {
-    // Difficulty increases with week number
-    const weekMultiplier = Math.min(2, 1 + this.weekData.week / 26);
-    const waves = Math.round(6 * weekMultiplier); // 6-12 waves
+    // Difficulty increases by work week, but the weekend stays shorter than the main game.
+    const weekMultiplier = Math.min(1.75, 1 + this.weekData.week / GAME.TOTAL_WEEKS);
+    const waves = Math.round(4 * weekMultiplier); // 4-7 waves
+    const waveInterval = Math.max(2500, this.timerMs / (waves + 1));
     
     for (let w = 0; w < waves; w++) {
-      this.time.delayedCall(w * 5000, () => {
+      this.time.delayedCall(w * waveInterval, () => {
         if (this.alive) {
           const patterns: ('line' | 'zig' | 'v' | 'random')[] = ['line', 'zig', 'v', 'random'];
           const pattern = patterns[Math.floor(Math.random() * patterns.length)];
@@ -218,7 +233,7 @@ export default class WeekendStageScene extends Phaser.Scene {
       body.setBounce(0); // No bouncing
       
       // Base falling speed
-      const baseSpeed = Phaser.Math.Between(120, 200);
+      const baseSpeed = Phaser.Math.Between(95, 170 + Math.round(this.weekData.week * 2));
       body.setVelocityY(baseSpeed);
       
       // Pattern-specific movement
@@ -309,34 +324,35 @@ export default class WeekendStageScene extends Phaser.Scene {
     // Calculate bonus
     const dodged = this.emailsSpawned - this.emailsTouched;
     const bonus = WEEKEND_STAGE.BONUS_POINTS_BASE + dodged * WEEKEND_STAGE.BONUS_POINTS_PER_EMAIL;
+    const restoredLives = Math.min(WEEKEND_STAGE.RESTORE_LIFE_MAX, (this.weekData.lives || 0) + 1);
     
     // Flash green
     this.cameras.main.flash(500, 0, 255, 0);
     
-    this.end(true, bonus);
+    this.end(true, bonus, restoredLives);
   }
 
   private fail() {
-    // No bonus for failing
-    this.end(false, 0);
+    // No penalty for failing; the weekend is a break, not another life trap.
+    this.end(false, 0, this.weekData.lives || 3);
   }
 
-  private end(success: boolean, bonus: number) {
+  private end(success: boolean, bonus: number, restoredLives: number) {
     // Freeze physics
     this.physics.pause();
     
     // Show result overlay
-    this.showResultOverlay(success, bonus);
+    this.showResultOverlay(success, bonus, restoredLives);
     
     // Continue after 3 seconds or on click
     this.time.delayedCall(1500, () => {
       this.input.once('pointerdown', () => {
-        this.continueToNextWeek(bonus);
+        this.continueToNextWeek(bonus, restoredLives);
       });
     });
   }
 
-  private showResultOverlay(success: boolean, bonus: number) {
+  private showResultOverlay(success: boolean, bonus: number, restoredLives: number) {
     const { width, height } = getBoardDimensions();
     
     // Dim overlay
@@ -347,7 +363,7 @@ export default class WeekendStageScene extends Phaser.Scene {
     this.add.text(
       width / 2,
       height / 2 - 60,
-      success ? '🎉 WEEKEND SURVIVED! 🎉' : '💥 EMAIL OVERLOAD! 💥',
+      success ? '🎉 WEEKEND RESET! 🎉' : '💥 EMAIL OVERLOAD! 💥',
       {
         fontFamily: 'Impact, Arial Black, sans-serif',
         fontSize: '48px',
@@ -361,7 +377,7 @@ export default class WeekendStageScene extends Phaser.Scene {
     this.add.text(
       width / 2,
       height / 2,
-      success ? `Bonus: +${bonus} points!` : 'No bonus...',
+      success ? `Bonus: +${bonus} points!` : 'No bonus, no penalty',
       {
         fontFamily: 'Inter, sans-serif',
         fontSize: '32px',
@@ -374,7 +390,9 @@ export default class WeekendStageScene extends Phaser.Scene {
     this.add.text(
       width / 2,
       height / 2 + 50,
-      `Emails dodged: ${this.emailsSpawned - this.emailsTouched} / ${this.emailsSpawned}`,
+      success
+        ? `Emails dodged: ${this.emailsSpawned - this.emailsTouched} / ${this.emailsSpawned}\nLives refilled to ${restoredLives}`
+        : `Emails dodged: ${this.emailsSpawned - this.emailsTouched} / ${this.emailsSpawned}`,
       {
         fontFamily: 'Inter, sans-serif',
         fontSize: '20px',
@@ -404,12 +422,12 @@ export default class WeekendStageScene extends Phaser.Scene {
     });
   }
 
-  private continueToNextWeek(bonus: number) {
-    // Return to main calendar scene with bonus
+  private continueToNextWeek(bonus: number, restoredLives: number) {
+    // Return to the next calendar day with any earned weekend bonus.
     this.scene.start('CalendarScenePhase2', {
-      week: this.weekData.week,
+      week: this.weekData.nextWeek,
       score: (this.weekData.score || 0) + bonus,
-      lives: this.weekData.lives,
+      lives: restoredLives,
       fromWeekendBonus: true
     });
   }

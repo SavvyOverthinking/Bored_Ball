@@ -99,8 +99,9 @@ export interface PowerUpScene extends Phaser.Scene {
   applyCoffee(duration: number): void;
   scalePaddle(scale: number, duration: number): void;
   grantShield(charges: number): void;
+  grantFocusBonus(duration: number): void;
   clearCurrentHourRow(): void;
-  convertRandomBlocks(count: number, meetingType?: string): void;
+  convertRandomBlocks(count: number, meetingType?: MeetingType): void;
   createExtraBall(x: number, y: number, velocityX: number, velocityY: number): void;
 }
 
@@ -148,6 +149,7 @@ export function isPowerUpScene(scene: Phaser.Scene): scene is PowerUpScene {
     'applyCoffee' in scene &&
     'scalePaddle' in scene &&
     'grantShield' in scene &&
+    'grantFocusBonus' in scene &&
     'clearCurrentHourRow' in scene &&
     'convertRandomBlocks' in scene &&
     'createExtraBall' in scene

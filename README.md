@@ -23,15 +23,15 @@
 
 ## 🎮 Game Overview
 
-Clear your Outlook calendar by destroying all meetings with physics-based gameplay! Navigate through 52 weeks of back-to-back meetings, double bookings, and meeting hell. Each meeting type has unique physics effects that modify ball behavior.
+Clear your Outlook calendar by destroying meetings with physics-based gameplay! Navigate a 25-workday campaign across five escalating weeks of onboarding, team ramp-up, meeting creep, calendar crunch, and final-Friday chaos.
 
 ### Features
 
 ✨ **Outlook-Inspired Design** - Authentic Microsoft calendar aesthetic  
-🎯 **52-Week Campaign** - Clear an entire year of meetings  
-⚡ **Progressive Difficulty** - Gentle start, brutal endgame (Phase 2)  
-🎮 **Weekly Power-ups** - 5 different power-ups to help you survive  
-🏖️ **Weekend Bonus Stages** - Email dodge challenges every 5 weeks  
+🎯 **25-Day Campaign** - Five work weeks with a clear beginning, middle, and finale
+⚡ **Teaching Progression** - New meeting types arrive one at a time
+🎮 **Daily Power-ups** - 6 different power-ups to help you survive
+🏖️ **Weekend Reset Stages** - Short email dodge breaks after each work week
 ⚡ **Physics Effects** - Each meeting type modifies gameplay  
 📊 **Multi-Hit Blocks** - Boss meetings require 3 hits to destroy  
 🎨 **Theme Support** - Outlook, Google Calendar, or default themes  
@@ -114,11 +114,11 @@ npm run preview
 ### Scoring
 - **5 points** per hit
 - **Bonus points** for destroying harder blocks (Boss = 30 total)
-- Score persists across all 52 weeks
+- Score persists across all 25 days
 
 ### 🎮 Power-ups (Phase 2)
 
-Weekly power-ups spawn 8-16 seconds into each week. Collect by hitting with the ball!
+Daily power-ups spawn 8-16 seconds after the ball launches, so they never expire on the splash screen. Collect by hitting them with the ball.
 
 | Power-up | Effect | Duration |
 |----------|--------|----------|
@@ -126,9 +126,10 @@ Weekly power-ups spawn 8-16 seconds into each week. Collect by hitting with the 
 | 🍻 **Happy Hour** | Wide paddle (1.4× size) | 30 seconds |
 | 🛡️ **DND** | Free shield (blocks next life loss) | Until used |
 | 📅 **Reschedule** | Clears all meetings in current hour | Instant |
-| 🧹 **Cleanup** | Softens 3 meetings to lunch breaks | Instant |
+| 🧹 **Cleanup** | Converts up to 3 lunch-window meetings into real breaks | Instant |
+| 💥 **Multi-Ball** | Spawns 2 extra balls | Instant |
 
-**Note:** Only ONE power-up spawns per week!
+**Note:** Only ONE power-up spawns per day!
 
 ---
 
@@ -214,9 +215,9 @@ The game currently uses code-drawn graphics. For Outlook-authentic sprites:
 - [ ] Paddle follows mouse/touch
 - [ ] Blocks require correct number of hits
 - [ ] Ball speed clamped (doesn't go infinite)
-- [ ] Max 3 balls enforced (team meetings)
-- [ ] Week progression works (1 → 52)
-- [ ] Score persists across weeks
+- [ ] Tuned max balls enforced (2 early, up to 4 late game)
+- [ ] Day progression works (1 → 25)
+- [ ] Score persists across days
 - [ ] Lives system functional
 - [ ] Win/lose overlays display
 - [ ] Keyboard controls work
@@ -266,26 +267,27 @@ This project uses **pre-built deployment** to avoid CI build issues.
 - **Velocity Clamping:** Applied after every collision
 
 ### Progression
-- **52 Weeks** total (full year)
+- **25 Days** total (5 work weeks)
 - **3 Lives** per game
-- Lives carry over between weeks
-- Score accumulates across entire year
+- Lives carry over between days
+- Weekend reset stages can refill 1 life up to the normal cap
+- Score accumulates across the full campaign
 
 ---
 
 ## 🔮 Roadmap
 
 ### ✅ Phase 2 Features (Implemented!)
-- [x] Progressive difficulty curve (weeks 1-52)
-- [x] Weekly power-ups (5 types)
-- [x] Weekend bonus stages (every 5th week)
-- [x] Gentler early game (weeks 1-5)
-- [x] Difficulty scaling (gets brutal by week 52!)
+- [x] Progressive difficulty curve (days 1-25)
+- [x] Daily power-ups (6 types)
+- [x] Weekend reset stages (after days 5, 10, 15, and 20)
+- [x] Gentler early game (days 1-5)
+- [x] Difficulty scaling through a final-Friday campaign cap
 
 ### Phase 3 - Planned Features
 - [ ] Sound effects (paddle hit, block destroy)
 - [ ] Particle effects on block destruction
-- [ ] Additional power-ups (multiball, laser, etc.)
+- [ ] Additional power-ups (laser, slow motion, etc.)
 - [ ] Local high score persistence
 - [ ] Mobile touch optimization
 - [ ] Achievements system

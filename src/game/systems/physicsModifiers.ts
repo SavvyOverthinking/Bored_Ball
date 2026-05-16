@@ -31,8 +31,8 @@ export interface MeetingTypeInfo {
   description: string;
   color: string;
   hitPoints: number;
-  minWeek: number;      // Minimum week to appear
-  maxPerWeek?: number;  // Maximum instances per week (undefined = no limit)
+  minWeek: number;      // Minimum campaign day to appear
+  maxPerWeek?: number;  // Maximum instances per day (undefined = no limit)
   pointsMultiplier?: number; // Score multiplier (default 1)
 }
 
@@ -43,7 +43,7 @@ export const MEETING_TYPE_INFO: Record<MeetingType, MeetingTypeInfo> = {
     description: '+10% ball speed',
     color: '#5c6bc0',
     hitPoints: 2,
-    minWeek: 1
+    minWeek: 2
   },
   'team': {
     type: 'team',
@@ -51,7 +51,7 @@ export const MEETING_TYPE_INFO: Record<MeetingType, MeetingTypeInfo> = {
     description: 'Splits ball into multiple',
     color: '#4caf50',
     hitPoints: 2,
-    minWeek: 1
+    minWeek: 4
   },
   'boss': {
     type: 'boss',
@@ -59,7 +59,7 @@ export const MEETING_TYPE_INFO: Record<MeetingType, MeetingTypeInfo> = {
     description: 'Ball speed x1.8!',
     color: '#e53935',
     hitPoints: 3,
-    minWeek: 3
+    minWeek: 6
   },
   'lunch': {
     type: 'lunch',
@@ -67,7 +67,7 @@ export const MEETING_TYPE_INFO: Record<MeetingType, MeetingTypeInfo> = {
     description: 'Normalizes ball speed',
     color: '#fbc02d',
     hitPoints: 1,
-    minWeek: 1
+    minWeek: 3
   },
   'personal': {
     type: 'personal',
@@ -83,7 +83,7 @@ export const MEETING_TYPE_INFO: Record<MeetingType, MeetingTypeInfo> = {
     description: 'Ball sticks for 0.5s',
     color: '#9E9E9E',
     hitPoints: 1,
-    minWeek: 6
+    minWeek: 8
   },
   // New types
   'recurring': {
@@ -92,7 +92,7 @@ export const MEETING_TYPE_INFO: Record<MeetingType, MeetingTypeInfo> = {
     description: 'Spawns a follow-up when destroyed',
     color: '#2e7d32', // Darker green with cycle icon
     hitPoints: 2,
-    minWeek: 15
+    minWeek: 13
   },
   'allhands': {
     type: 'allhands',
@@ -100,7 +100,7 @@ export const MEETING_TYPE_INFO: Record<MeetingType, MeetingTypeInfo> = {
     description: 'Damages adjacent blocks on destroy',
     color: '#ff6d00', // Orange gradient
     hitPoints: 5,
-    minWeek: 25,
+    minWeek: 18,
     maxPerWeek: 2
   },
   'focus': {
@@ -109,7 +109,7 @@ export const MEETING_TYPE_INFO: Record<MeetingType, MeetingTypeInfo> = {
     description: 'Ball passes through, +5s 50% score bonus',
     color: '#00897b', // Teal
     hitPoints: 1,
-    minWeek: 1,
+    minWeek: 10,
     pointsMultiplier: 1.5
   },
   'emergency': {
@@ -118,7 +118,7 @@ export const MEETING_TYPE_INFO: Record<MeetingType, MeetingTypeInfo> = {
     description: '8s timer - lose life if not destroyed!',
     color: '#d32f2f', // Flashing red
     hitPoints: 2,
-    minWeek: 30
+    minWeek: 21
   },
   'optional': {
     type: 'optional',
@@ -126,7 +126,7 @@ export const MEETING_TYPE_INFO: Record<MeetingType, MeetingTypeInfo> = {
     description: 'Can ignore, but 3x points if destroyed',
     color: '#78909c', // Grey-blue with dashed border
     hitPoints: 1,
-    minWeek: 1,
+    minWeek: 9,
     pointsMultiplier: 3
   }
 };
@@ -363,7 +363,7 @@ export function getPointsMultiplier(meetingType: MeetingType): number {
 }
 
 /**
- * Check if meeting type can appear in a given week
+ * Check if meeting type can appear in a given campaign day
  */
 export function canAppearInWeek(meetingType: MeetingType, week: number): boolean {
   const info = MEETING_TYPE_INFO[meetingType];

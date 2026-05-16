@@ -1,5 +1,6 @@
 import React from 'react';
 import { useGame } from '../../context/GameContext';
+import { CAMPAIGN_TOTAL_DAYS } from '@game/utils/campaign';
 
 // Get tier name based on combo count
 const getComboTier = (combo: number): { name: string; color: string } => {
@@ -18,7 +19,7 @@ export const GameHUD: React.FC = () => {
   const isOnFire = combo >= 20 && comboMultiplier > 3.0; // On Fire has 1.5x stacking bonus
 
   return (
-    <div className="absolute top-4 left-4 right-4 flex justify-between items-center text-white text-lg font-bold p-2 bg-black bg-opacity-50 rounded">
+    <div className="pointer-events-none absolute top-3 left-3 right-3 z-10 flex justify-between items-center text-white text-base md:text-lg font-bold p-2 bg-black bg-opacity-55 rounded">
       <div className="flex gap-4">
         <div>Score: {gameState.score}</div>
         <div>Lives: {'❤️'.repeat(gameState.lives)}{'🖤'.repeat(Math.max(0, 3 - gameState.lives))}</div>
@@ -45,7 +46,7 @@ export const GameHUD: React.FC = () => {
         </div>
       )}
 
-      <div>Week: {gameState.week}</div>
+      <div>Day: {gameState.week}/{CAMPAIGN_TOTAL_DAYS}</div>
 
       {/* Power-up Status */}
       {gameState.powerUpStatus && (
