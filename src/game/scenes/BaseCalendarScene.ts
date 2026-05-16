@@ -163,7 +163,7 @@ export abstract class BaseCalendarScene extends Phaser.Scene {
     this.ballCorrectionCooldown.clear();
 
     const { width, height } = getBoardDimensions();
-    this.add.rectangle(width / 2, height / 2, width, height, 0xfafbfc);
+    this.add.rectangle(width / 2, height / 2, width, height, 0xffffff);
 
     // Initialize ball pool
     this.ballPool = new BallPool(this);
@@ -263,20 +263,37 @@ export abstract class BaseCalendarScene extends Phaser.Scene {
    */
   protected drawCalendarGrid() {
     const config = getCalendarGridConfig();
+    const board = getBoardDimensions();
     const graphics = this.add.graphics();
 
-    // Draw day labels
+    graphics.fillStyle(0xffffff, 1);
+    graphics.fillRect(0, 0, board.width, board.height);
+
+    graphics.fillStyle(0xfaf9f8, 1);
+    graphics.fillRect(0, 0, board.width, config.headerHeight);
+    graphics.fillStyle(0xf3f2f1, 1);
+    graphics.fillRect(0, config.headerHeight, config.padding - 8, config.gridHeight);
+
+    graphics.lineStyle(1, 0xd2d0ce, 1);
+    graphics.lineBetween(0, config.headerHeight, board.width, config.headerHeight);
+    graphics.lineBetween(config.padding - 8, config.headerHeight, config.padding - 8, config.headerHeight + config.gridHeight);
+
     config.days.forEach((day, index) => {
       const x = config.padding + index * (config.columnWidth + config.columnGap) + config.columnWidth / 2;
-      this.add.text(x, 25, day.substring(0, 3).toUpperCase(), {
+      this.add.text(x, 15, day.substring(0, 3).toUpperCase(), {
         fontFamily: 'Segoe UI, Inter, sans-serif',
-        fontSize: '12px',
+        fontSize: '11px',
         color: '#605e5c',
-        fontStyle: '600',
+        fontStyle: '700',
+      }).setOrigin(0.5);
+
+      this.add.text(x, 34, `Workday ${index + 1}`, {
+        fontFamily: 'Segoe UI, Inter, sans-serif',
+        fontSize: '10px',
+        color: '#8a8886',
       }).setOrigin(0.5);
     });
 
-    // Draw time labels
     const gridHeight = config.gridHeight;
     const hourCount = config.hours.length - 1;
 
@@ -295,29 +312,32 @@ export abstract class BaseCalendarScene extends Phaser.Scene {
       }
 
       const timeStr = `${displayHour} ${ampm}`;
-      this.add.text(18, y - 5, timeStr, {
+      this.add.text(12, y - 6, timeStr, {
         fontFamily: 'Segoe UI, Inter, sans-serif',
         fontSize: '10px',
-        color: '#8a8886',
+        color: '#605e5c',
       }).setOrigin(0, 0);
     });
 
-    // Draw grid lines
-    graphics.lineStyle(1, 0xedebe9, 1);
-
     config.hours.forEach((_, index) => {
       const y = config.headerHeight + (gridHeight / hourCount) * index;
+      graphics.lineStyle(1, 0xedebe9, 1);
       graphics.lineBetween(
         config.padding,
         y,
-        getBoardDimensions().width - config.padding,
+        board.width - config.padding,
         y
       );
+
+      if (index < hourCount) {
+        const halfY = y + (gridHeight / hourCount) / 2;
+        graphics.lineStyle(1, 0xf3f2f1, 1);
+        graphics.lineBetween(config.padding, halfY, board.width - config.padding, halfY);
+      }
     });
 
-    // Vertical lines between days
-    for (let i = 1; i < config.days.length; i++) {
-      const x = config.padding + i * (config.columnWidth + config.columnGap) - config.columnGap / 2;
+    for (let i = 0; i <= config.days.length; i++) {
+      const x = config.padding + i * (config.columnWidth + config.columnGap) - (i === 0 ? 0 : config.columnGap / 2);
       graphics.lineStyle(1, 0xe1dfdd, 1);
       graphics.lineBetween(
         x,
@@ -326,6 +346,15 @@ export abstract class BaseCalendarScene extends Phaser.Scene {
         config.headerHeight + gridHeight
       );
     }
+
+    const now = new Date();
+    const minutesSinceStart = (now.getHours() - 9) * 60 + now.getMinutes();
+    const visibleMinute = minutesSinceStart >= 0 && minutesSinceStart <= 480 ? minutesSinceStart : 150;
+    const nowY = config.headerHeight + (visibleMinute / 480) * gridHeight;
+
+    graphics.lineStyle(2, 0xd13438, 0.88);
+    graphics.lineBetween(config.padding - 5, nowY, board.width - config.padding, nowY);
+    this.add.circle(config.padding - 8, nowY, 4, 0xd13438, 1);
   }
 
   /**
@@ -335,8 +364,8 @@ export abstract class BaseCalendarScene extends Phaser.Scene {
     const { width, height } = getBoardDimensions();
     const paddleWidth = this.getPaddleWidth();
 
-    const paddleGraphics = this.add.rectangle(width / 2, height - 50, paddleWidth, 18, 0x0078d4, 1);
-    paddleGraphics.setStrokeStyle(1, 0x106ebe, 1);
+    const paddleGraphics = this.add.rectangle(width / 2, height - 50, paddleWidth, 16, 0x0078d4, 1);
+    paddleGraphics.setStrokeStyle(2, 0x004578, 1);
 
     this.physics.add.existing(paddleGraphics);
     this.paddle = paddleGraphics as PhaserPaddle;
@@ -344,7 +373,7 @@ export abstract class BaseCalendarScene extends Phaser.Scene {
     const body = this.paddle.body as Phaser.Physics.Arcade.Body;
     if (body) {
       body.immovable = true;
-      body.setSize(paddleWidth, 18);
+      body.setSize(paddleWidth, 16);
     }
 
     this.paddle.setDepth(10);
@@ -683,15 +712,71 @@ export abstract class BaseCalendarScene extends Phaser.Scene {
   protected createSplashScreen() {
     const { width, height } = getBoardDimensions();
 
-    this.splashOverlay = this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.7);
+    this.splashOverlay = this.add.rectangle(width / 2, height / 2, width, height, 0xffffff, 0.58);
     this.splashOverlay.setDepth(999);
     this.splashOverlay.setVisible(false);
 
-    if (this.textures.exists('splash')) {
+    const panelWidth = 520;
+    const panelHeight = 260;
+    const panelX = width / 2 - panelWidth / 2;
+    const panelY = height / 2 - panelHeight / 2;
+
+    if (!this.textures.exists('outlook_splash')) {
+      const graphics = this.add.graphics();
+      graphics.fillStyle(0xffffff, 1);
+      graphics.fillRoundedRect(panelX, panelY, panelWidth, panelHeight, 6);
+      graphics.lineStyle(1, 0xc8c6c4, 1);
+      graphics.strokeRoundedRect(panelX, panelY, panelWidth, panelHeight, 6);
+      graphics.fillStyle(0x0078d4, 1);
+      graphics.fillRect(panelX, panelY, panelWidth, 44);
+      graphics.fillStyle(0xfaf9f8, 1);
+      graphics.fillRect(panelX + 1, panelY + 45, panelWidth - 2, panelHeight - 46);
+      graphics.lineStyle(1, 0xedebe9, 1);
+      graphics.lineBetween(panelX + 32, panelY + 120, panelX + panelWidth - 32, panelY + 120);
+      graphics.lineBetween(panelX + 32, panelY + 158, panelX + panelWidth - 32, panelY + 158);
+      graphics.lineBetween(panelX + 32, panelY + 196, panelX + panelWidth - 32, panelY + 196);
+      graphics.generateTexture('outlook_splash', width, height);
+      graphics.destroy();
+    }
+
+    this.splashImage = this.add.image(width / 2, height / 2, 'outlook_splash');
+
+    const titleText = this.add.text(panelX + 24, panelY + 13, 'Calendar Breakout', {
+      fontFamily: 'Segoe UI, Inter, sans-serif',
+      fontSize: '16px',
+      color: '#ffffff',
+      fontStyle: '700',
+    }).setOrigin(0, 0).setDepth(1001);
+
+    const subtitleText = this.add.text(panelX + 34, panelY + 72, 'Your workday calendar is overloaded.', {
+      fontFamily: 'Segoe UI, Inter, sans-serif',
+      fontSize: '22px',
+      color: '#201f1e',
+      fontStyle: '650',
+    }).setOrigin(0, 0).setDepth(1001);
+
+    const detailText = this.add.text(panelX + 34, panelY + 108, 'Clear the meetings, keep your week moving, and survive to Friday.', {
+      fontFamily: 'Segoe UI, Inter, sans-serif',
+      fontSize: '13px',
+      color: '#605e5c',
+    }).setOrigin(0, 0).setDepth(1001);
+
+    const startText = this.add.text(panelX + panelWidth - 144, panelY + panelHeight - 58, 'Start game', {
+      fontFamily: 'Segoe UI, Inter, sans-serif',
+      fontSize: '14px',
+      color: '#ffffff',
+      fontStyle: '700',
+      backgroundColor: '#0078d4',
+      padding: { x: 18, y: 8 },
+    }).setOrigin(0, 0).setDepth(1001);
+
+    (this.splashImage as Phaser.GameObjects.Image & { overlayTexts?: Phaser.GameObjects.Text[] }).overlayTexts = [titleText, subtitleText, detailText, startText];
+
+    if (!this.splashImage && this.textures.exists('splash')) {
       this.splashImage = this.add.image(width / 2, height / 2, 'splash');
       const scale = Math.min(width / this.splashImage.width, height / this.splashImage.height) * 0.95;
       this.splashImage.setScale(scale);
-    } else {
+    } else if (!this.splashImage) {
       const graphics = this.add.graphics();
       graphics.fillStyle(0x1a1a2e, 1);
       graphics.fillRect(0, 0, width, height);
@@ -734,16 +819,16 @@ export abstract class BaseCalendarScene extends Phaser.Scene {
     this.splashImage.setInteractive({ useHandCursor: true });
 
     this.countdownText = this.add.text(width / 2, height / 2, '', {
-      fontFamily: 'Impact, Arial Black, sans-serif',
-      fontSize: '120px',
-      color: '#FFD700',
-      stroke: '#FF6600',
-      strokeThickness: 8,
+      fontFamily: 'Segoe UI, Inter, sans-serif',
+      fontSize: '96px',
+      color: '#0078d4',
+      stroke: '#ffffff',
+      strokeThickness: 6,
       shadow: {
-        offsetX: 4,
-        offsetY: 4,
-        color: '#000000',
-        blur: 10,
+        offsetX: 0,
+        offsetY: 2,
+        color: '#605e5c',
+        blur: 4,
         fill: true
       }
     }).setOrigin(0.5).setDepth(1001).setVisible(false);

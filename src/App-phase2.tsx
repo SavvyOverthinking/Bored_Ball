@@ -4,38 +4,46 @@ import { GameHUD, MeetingTypesInfo, PowerUpInfo } from '@components/game-ui';
 function App() {
   return (
     <Layout phase="2">
-      <div className="relative">
-        <CalendarBreakoutPhase2 />
-        <GameHUD />
-      </div>
-
-      {/* Phase 2 Features Info */}
-      <div className="mt-6 bg-gradient-to-r from-purple-50 to-pink-50 rounded-lg shadow-lg p-6 max-w-2xl border border-purple-200">
-        <h2 className="text-xl font-semibold text-gray-800 mb-3" style={{ fontFamily: 'Segoe UI, sans-serif' }}>
-          ✨ Phase 2 Features
-        </h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm" style={{ fontFamily: 'Segoe UI, sans-serif' }}>
-          <div className="bg-white p-3 rounded-lg shadow-sm">
-            <div className="font-semibold text-purple-600 mb-1">📈 Gentle Start</div>
-            <div className="text-gray-600 text-xs">25 workdays across 5 escalating weeks</div>
+      <section className="outlook-window" aria-label="Calendar Breakout work week">
+        <div className="outlook-titlebar">
+          <div className="outlook-app-switcher" aria-hidden="true">
+            <span />
+            <span />
+            <span />
+            <span />
           </div>
-          <div className="bg-white p-3 rounded-lg shadow-sm">
-            <div className="font-semibold text-pink-600 mb-1">⚡ Daily Power-ups</div>
-            <div className="text-gray-600 text-xs">One power-up per day: Coffee, Shield, Cleanup & more</div>
-          </div>
-          <div className="bg-white p-3 rounded-lg shadow-sm">
-            <div className="font-semibold text-blue-600 mb-1">🌴 Weekend Bonus</div>
-            <div className="text-gray-600 text-xs">After each week: short email dodge reset, bonus points, life refill</div>
-          </div>
-          <div className="bg-white p-3 rounded-lg shadow-sm">
-            <div className="font-semibold text-orange-600 mb-1">🎯 Progressive Difficulty</div>
-            <div className="text-gray-600 text-xs">New meeting types arrive one at a time through the campaign</div>
-          </div>
+          <div className="outlook-title">Calendar</div>
+          <div className="outlook-search">Search calendar</div>
+          <div className="outlook-account">CB</div>
         </div>
-      </div>
 
-      <MeetingTypesInfo />
-      <PowerUpInfo /> {/* Added PowerUpInfo */}
+        <div className="outlook-commandbar">
+          <span className="outlook-command is-active">Work week</span>
+          <span className="outlook-command">Today</span>
+          <span className="outlook-command">Board</span>
+          <span className="outlook-commandbar-spacer" />
+          <span className="outlook-sync-dot" aria-hidden="true" />
+          <span className="outlook-sync-copy">Campaign mode</span>
+        </div>
+
+        <div className="outlook-body">
+          <aside className="outlook-nav" aria-label="Outlook navigation">
+            <span className="outlook-nav-item is-active">Cal</span>
+            <span className="outlook-nav-item">Mail</span>
+            <span className="outlook-nav-item">To Do</span>
+          </aside>
+
+          <section className="outlook-calendar-pane">
+            <GameHUD />
+            <CalendarBreakoutPhase2 />
+          </section>
+        </div>
+      </section>
+
+      <section className="outlook-reference-grid" aria-label="Game reference">
+        <MeetingTypesInfo />
+        <PowerUpInfo />
+      </section>
     </Layout>
   );
 }

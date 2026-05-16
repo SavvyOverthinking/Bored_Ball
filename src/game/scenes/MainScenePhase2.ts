@@ -151,6 +151,39 @@ export class MainScenePhase2 extends BaseCalendarScene {
     console.log(`📊 Render stats: ${renderItems.length} blocks (including ${renderItems.filter(r => r.cols > 1).length} in double-bookings)`);
   }
 
+  private softenColor(color: number, mixWithWhite: number = 0.84): number {
+    const red = (color >> 16) & 0xff;
+    const green = (color >> 8) & 0xff;
+    const blue = color & 0xff;
+    const mix = (channel: number) => Math.round(channel + (255 - channel) * mixWithWhite);
+    return (mix(red) << 16) + (mix(green) << 8) + mix(blue);
+  }
+
+  private formatMeetingTime(minutesFromStart: number): string {
+    const totalMinutes = 9 * 60 + minutesFromStart;
+    const hour24 = Math.floor(totalMinutes / 60);
+    const minutes = totalMinutes % 60;
+    const hour12 = hour24 > 12 ? hour24 - 12 : hour24 === 0 ? 12 : hour24;
+    const suffix = hour24 >= 12 ? 'PM' : 'AM';
+    return `${hour12}:${minutes.toString().padStart(2, '0')} ${suffix}`;
+  }
+
+  private truncateLabel(value: string, maxChars: number): string {
+    return value.length > maxChars ? `${value.slice(0, maxChars - 3)}...` : value;
+  }
+
+  private getPowerUpMarker(kind: PowerUpKind): string {
+    const markers: Record<PowerUpKind, string> = {
+      coffee: 'CF',
+      happyHour: 'HH',
+      dnd: 'DN',
+      reschedule: 'RS',
+      cleanup: 'CC',
+      multiBall: 'MB',
+    };
+    return markers[kind];
+  }
+
   private createMeetingBlock(item: RenderItem, blockId: string): PhaserBlock {
     const config = getCalendarGridConfig();
     const START_HOUR = 9;
@@ -168,43 +201,82 @@ export class MainScenePhase2 extends BaseCalendarScene {
     const x = dayX + (fullW / item.cols) * item.col + w / 2 + 4;
     const y = (bandTop + bandBot) / 2;
     const h = Math.max(20, bandBot - bandTop - 4);
-    const color = this.getColorForMeetingType(item.type);
+    const accentColor = this.getColorForMeetingType(item.type);
+    const fillMix = item.type === 'lunch' ? 0.58 : item.type === 'boss' || item.type === 'emergency' ? 0.78 : 0.84;
+    const fillColor = this.softenColor(accentColor, fillMix);
 
-    const blockRect = this.add.rectangle(x, y, w, h, color, 0.85);
-    blockRect.setStrokeStyle(1, 0xffffff, 0.2);
+    const blockRect = this.add.rectangle(x, y, w, h, fillColor, 0.96);
+    blockRect.setStrokeStyle(1, accentColor, item.type === 'optional' ? 0.45 : 0.68);
+    blockRect.setDepth(1);
     this.blocks.add(blockRect);
 
     const block = blockRect as PhaserBlock;
     block.setData('meetingType', item.type);
     block.setData('blockId', blockId);
+    block.setData('accentColor', accentColor);
+    block.setData('softFillColor', fillColor);
 
-    const accentBar = this.add.rectangle(x - w / 2 + 2, y, 3, h, color, 1.0);
+    const accentBar = this.add.rectangle(x - w / 2 + 3, y, 4, Math.max(10, h - 4), accentColor, 1.0);
     accentBar.setData('blockId', blockId);
     accentBar.setData('blockChildType', 'accent');
     accentBar.setDepth(2);
 
     const hitPoints = item.title === 'Onboarding' ? 1 : this.getHitPointsForMeeting(item.type);
+    block.setData('maxHP', hitPoints);
     this.blockHitPoints.set(blockId, hitPoints);
 
     if (h > 18) {
-      const fontSize = h > 30 ? '10px' : '8px';
+      const fontSize = h > 34 ? '11px' : '9px';
+      const maxTitleChars = Math.max(8, Math.floor((w - 16) / 6) * (h > 42 ? 2 : 1));
       const text = this.add.text(
-        x - w / 2 + 6,
-        y - h / 2 + 3,
-        item.title || 'Meeting',
+        x - w / 2 + 10,
+        y - h / 2 + 4,
+        this.truncateLabel(item.title || 'Meeting', maxTitleChars),
         {
           fontFamily: 'Segoe UI, Inter, sans-serif',
           fontSize,
-          color: '#ffffff',
+          color: '#201f1e',
           fontStyle: '600',
           align: 'left',
-          wordWrap: { width: w - 10 },
+          wordWrap: { width: w - 18 },
         }
       ).setOrigin(0, 0);
 
       text.setData('blockId', blockId);
       text.setData('blockChildType', 'label');
       text.setDepth(5);
+    }
+
+    if (h > 36) {
+      const timeText = this.add.text(
+        x - w / 2 + 10,
+        y + h / 2 - 15,
+        `${this.formatMeetingTime(item.startMin)}-${this.formatMeetingTime(item.endMin)}`,
+        {
+          fontFamily: 'Segoe UI, Inter, sans-serif',
+          fontSize: '8px',
+          color: '#605e5c',
+        }
+      ).setOrigin(0, 0);
+
+      timeText.setData('blockId', blockId);
+      timeText.setData('blockChildType', 'time');
+      timeText.setDepth(5);
+    }
+
+    if (hitPoints > 1 && item.type !== 'emergency' && h > 24) {
+      const hpText = this.add.text(x + w / 2 - 12, y - h / 2 + 4, `x${hitPoints}`, {
+        fontFamily: 'Segoe UI, Inter, sans-serif',
+        fontSize: '9px',
+        color: '#ffffff',
+        fontStyle: '700',
+        backgroundColor: '#605e5c',
+        padding: { x: 3, y: 1 },
+      }).setOrigin(0.5, 0);
+
+      hpText.setData('blockId', blockId);
+      hpText.setData('blockChildType', 'hp');
+      hpText.setDepth(6);
     }
 
     if (item.type === 'emergency') {
@@ -238,6 +310,46 @@ export class MainScenePhase2 extends BaseCalendarScene {
    */
   protected getPaddleWidth(): number {
     return PHYSICS.PADDLE_WIDTH * this.tuning.paddleScale;
+  }
+
+  protected applyBlockDamage(
+    block: PhaserBlock,
+    blockId: string,
+    meetingType: MeetingType,
+    currentHP: number,
+    newHP: number,
+    scoreMultiplier: number
+  ): boolean {
+    const destroyed = super.applyBlockDamage(block, blockId, meetingType, currentHP, newHP, scoreMultiplier);
+
+    if (!destroyed) {
+      this.updateMeetingDamageVisuals(block, blockId, newHP);
+    }
+
+    return destroyed;
+  }
+
+  private updateMeetingDamageVisuals(block: PhaserBlock, blockId: string, remainingHP: number): void {
+    const maxHP = Number(block.getData('maxHP') || remainingHP);
+    const accentColor = Number(block.getData('accentColor') || this.getColorForMeetingType(block.getData('meetingType')));
+    const fillColor = Number(block.getData('softFillColor') || this.softenColor(accentColor));
+    const healthRatio = Phaser.Math.Clamp(remainingHP / Math.max(1, maxHP), 0.3, 1);
+
+    block.setFillStyle(fillColor, 0.54 + 0.38 * healthRatio);
+    block.setStrokeStyle(2, accentColor, 0.9);
+
+    this.children.getChildren().forEach((child) => {
+      const childWithData = child as GameObjectWithData;
+      if (!childWithData.getData || childWithData.getData('blockId') !== blockId) return;
+
+      const childType = childWithData.getData('blockChildType');
+      if (childType === 'hp' && child instanceof Phaser.GameObjects.Text) {
+        child.setText(`x${remainingHP}`);
+      }
+      if ((childType === 'label' || childType === 'time') && child instanceof Phaser.GameObjects.Text) {
+        child.setAlpha(0.7 + 0.3 * healthRatio);
+      }
+    });
   }
 
   /**
@@ -597,16 +709,17 @@ Click to restart from Day 1`);
     const spawnX = block.x;
     const spawnY = block.y;
 
-    // Extract emoji from label
-    const emoji = powerUp.label.split(' ')[0];
-
-    const icon = this.add.text(0, 0, emoji, {
-      fontSize: '48px',
-      color: '#FFFFFF'
+    const icon = this.add.text(0, 0, this.getPowerUpMarker(powerUp.id), {
+      fontFamily: 'Segoe UI, Inter, sans-serif',
+      fontSize: '16px',
+      color: '#201f1e',
+      fontStyle: '700',
+      backgroundColor: '#ffffff',
+      padding: { x: 8, y: 5 },
     }).setOrigin(0.5);
 
-    icon.setStroke('#000000', 4);
-    icon.setShadow(0, 0, '#FFD700', 8, true, true);
+    icon.setStroke('#f2c811', 2);
+    icon.setShadow(0, 2, '#f2c811', 8, true, true);
     icon.setData('powerUpType', powerUp.id);
 
     const container = this.add.container(spawnX, spawnY, [icon]);
@@ -848,6 +961,7 @@ Click to restart from Day 1`);
 
     // Use theme colors for consistency
     const color = this.getColorForMeetingType(meetingType);
+    const fillColor = this.softenColor(color, meetingType === 'lunch' ? 0.58 : 0.84);
     const hp = this.getHitPointsForMeeting(meetingType);
 
     blocks.forEach((block) => {
@@ -855,7 +969,11 @@ Click to restart from Day 1`);
       const meeting = this.blockDataMap.get(blockId);
       this.blockHitPoints.set(blockId, hp);
       block.setData('meetingType', meetingType);
-      block.setFillStyle(color, 0.85);
+      block.setData('accentColor', color);
+      block.setData('softFillColor', fillColor);
+      block.setData('maxHP', hp);
+      block.setFillStyle(fillColor, 0.96);
+      block.setStrokeStyle(1, color, 0.68);
 
       if (meeting) {
         const title = meetingType === 'lunch' ? 'Lunch Break' : meetingType;
@@ -875,6 +993,9 @@ Click to restart from Day 1`);
           }
           if (childType === 'label' && child instanceof Phaser.GameObjects.Text) {
             child.setText(title);
+          }
+          if (childType === 'hp' && child instanceof Phaser.GameObjects.Text) {
+            child.setVisible(hp > 1).setText(`x${hp}`);
           }
         });
       }

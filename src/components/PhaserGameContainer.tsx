@@ -39,7 +39,7 @@ export const PhaserGameContainer: React.FC<PhaserGameContainerProps> = ({
         },
       },
       scene: scenes,
-      backgroundColor: '#fafbfc',
+      backgroundColor: '#ffffff',
       scale: {
         mode: Phaser.Scale.FIT,
         autoCenter: Phaser.Scale.CENTER_BOTH,
@@ -75,7 +75,7 @@ export const PhaserGameContainer: React.FC<PhaserGameContainerProps> = ({
   return (
     <div
       ref={gameRef}
-      className="shadow-2xl rounded-lg overflow-hidden bg-white border border-gray-200"
+      className="outlook-canvas-frame"
       style={{ maxWidth: '900px', width: '100%' }}
     />
   );

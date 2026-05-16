@@ -1,27 +1,31 @@
 import React from 'react';
 
 const POWER_UPS = [
-  { name: 'Coffee', icon: '☕', color: 'text-purple-600', effect: 'Steady ball speed for 15s' },
-  { name: 'Happy Hour', icon: '🍻', color: 'text-pink-600', effect: 'Wide paddle for 30s' },
-  { name: 'Do Not Disturb', icon: '🛡️', color: 'text-blue-600', effect: 'Blocks the next life loss' },
-  { name: 'Reschedule', icon: '📅', color: 'text-orange-600', effect: 'Clears meetings near the ball row' },
-  { name: 'Calendar Cleanup', icon: '🧹', color: 'text-green-600', effect: 'Turns up to 3 lunch-window meetings into breaks' },
-  { name: 'Multi-Ball', icon: '💥', color: 'text-fuchsia-600', effect: 'Spawns 2 extra balls' },
+  { name: 'Coffee', marker: 'CF', color: '#8764b8', effect: 'Steady ball speed for 15s' },
+  { name: 'Happy Hour', marker: 'HH', color: '#c239b3', effect: 'Wide paddle for 30s' },
+  { name: 'Do Not Disturb', marker: 'DN', color: '#0078d4', effect: 'Blocks the next life loss' },
+  { name: 'Reschedule', marker: 'RS', color: '#ca5010', effect: 'Clears meetings near the ball row' },
+  { name: 'Calendar Cleanup', marker: 'CC', color: '#107c10', effect: 'Turns lunch-window meetings into breaks' },
+  { name: 'Multi-Ball', marker: 'MB', color: '#881798', effect: 'Spawns 2 extra balls' },
 ];
 
 export const PowerUpInfo: React.FC = () => {
   return (
-    <div className="mt-6 bg-gradient-to-r from-purple-50 to-pink-50 rounded-lg shadow-lg p-6 max-w-2xl border border-purple-200">
-      <h2 className="text-xl font-semibold text-gray-800 mb-3" style={{ fontFamily: 'Segoe UI, sans-serif' }}>
-        ✨ Power-ups
-      </h2>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm" style={{ fontFamily: 'Segoe UI, sans-serif' }}>
+    <div className="outlook-reference-card">
+      <div className="outlook-reference-header">
+        <h2>Power-ups</h2>
+        <span>Add-ins</span>
+      </div>
+      <div className="outlook-power-grid">
         {POWER_UPS.map(powerUp => (
-          <div key={powerUp.name} className="bg-white p-3 rounded-lg shadow-sm">
-            <div className={`font-semibold mb-1 ${powerUp.color}`}>
-              {powerUp.icon} {powerUp.name}
+          <div key={powerUp.name} className="outlook-power-row">
+            <span className="outlook-power-marker" style={{ borderColor: powerUp.color, color: powerUp.color }}>
+              {powerUp.marker}
+            </span>
+            <div>
+              <div className="outlook-power-title">{powerUp.name}</div>
+              <div className="outlook-power-meta">{powerUp.effect}</div>
             </div>
-            <div className="text-gray-600 text-xs">{powerUp.effect}</div>
           </div>
         ))}
       </div>
