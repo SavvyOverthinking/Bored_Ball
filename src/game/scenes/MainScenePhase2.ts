@@ -159,17 +159,37 @@ export class MainScenePhase2 extends BaseCalendarScene {
     return (mix(red) << 16) + (mix(green) << 8) + mix(blue);
   }
 
-  private formatMeetingTime(minutesFromStart: number): string {
+  private formatMeetingTime(minutesFromStart: number, compact: boolean = false): string {
     const totalMinutes = 9 * 60 + minutesFromStart;
     const hour24 = Math.floor(totalMinutes / 60);
     const minutes = totalMinutes % 60;
     const hour12 = hour24 > 12 ? hour24 - 12 : hour24 === 0 ? 12 : hour24;
     const suffix = hour24 >= 12 ? 'PM' : 'AM';
-    return `${hour12}:${minutes.toString().padStart(2, '0')} ${suffix}`;
+    return compact ? `${hour12}:${minutes.toString().padStart(2, '0')}` : `${hour12}:${minutes.toString().padStart(2, '0')} ${suffix}`;
   }
 
   private truncateLabel(value: string, maxChars: number): string {
-    return value.length > maxChars ? `${value.slice(0, maxChars - 3)}...` : value;
+    if (value.length <= maxChars) return value;
+    if (maxChars <= 1) return '';
+    if (maxChars <= 3) return value.slice(0, maxChars);
+    return `${value.slice(0, maxChars - 3)}...`;
+  }
+
+  private formatMeetingTimeRange(startMin: number, endMin: number, width: number): string {
+    if (width < 42) {
+      return '';
+    }
+
+    const maxChars = Math.floor((width - 18) / 4.3);
+
+    if (width < 58) {
+      return this.truncateLabel(this.formatMeetingTime(startMin, true), maxChars);
+    }
+
+    const compact = width < 96;
+    const separator = compact ? '-' : ' - ';
+    const range = `${this.formatMeetingTime(startMin, compact)}${separator}${this.formatMeetingTime(endMin, compact)}`;
+    return this.truncateLabel(range, maxChars);
   }
 
   private getPowerUpMarker(kind: PowerUpKind): string {
@@ -248,14 +268,16 @@ export class MainScenePhase2 extends BaseCalendarScene {
     }
 
     if (h > 36) {
+      const timeLabel = this.formatMeetingTimeRange(item.startMin, item.endMin, w);
       const timeText = this.add.text(
         x - w / 2 + 10,
         y + h / 2 - 15,
-        `${this.formatMeetingTime(item.startMin)}-${this.formatMeetingTime(item.endMin)}`,
+        timeLabel,
         {
           fontFamily: 'Segoe UI, Inter, sans-serif',
           fontSize: '8px',
           color: '#605e5c',
+          fixedWidth: Math.max(0, w - 18),
         }
       ).setOrigin(0, 0);
 
