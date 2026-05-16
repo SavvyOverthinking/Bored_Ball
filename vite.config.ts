@@ -11,8 +11,11 @@ const phase2DevRootPlugin = () => ({
     if (!isPhase2) return;
 
     server.middlewares.use((req, _res, next) => {
-      if (req.url === '/Bored_Ball/' || req.url === '/Bored_Ball') {
-        req.url = '/Bored_Ball/index-phase2.html';
+      if (req.url) {
+        const url = new URL(req.url, 'http://localhost');
+        if (url.pathname === '/Bored_Ball/' || url.pathname === '/Bored_Ball') {
+          req.url = `/Bored_Ball/index-phase2.html${url.search}`;
+        }
       }
       next();
     });
